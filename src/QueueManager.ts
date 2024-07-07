@@ -1,24 +1,138 @@
-import { Queue, type QueueOptions, type RedisConnection, } from 'bullmq'
+import { Queue, FlowProducer } from 'bullmq'
+import type { QueueOptions, RedisConnection, DefaultJobOptions } from 'bullmq'
 
-export type Queues<QN extends string> = Record<QN, QueueOptions>
+export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
 export type NameToQueue<JN extends string, QN extends string> = Record<JN, QN>
+export type DefaultJob<JN extends string> = {
+  name: JN
+  data: unknown
+  opts?: DefaultJobOptions
+}
+
+export type FlowJob<JN extends string> = DefaultJob<JN> & {
+  children?: Array<FlowJob<JN>>
+}
+
+export type Options = {
+  /**
+   * 
+   * @param queue - instance of Queue for additional setup (event handling) 
+   * @returns {void}
+   */
+  setupQueue?: (queue: Queue) => void
+}
 
 export class QueueManager<
   JNs extends string,
   QNs extends string,
+  J extends DefaultJob<JNs>,
 > {
-
-  protected queues: Record<QNs, Queue>
+  protected queues = {} as Record<QNs, Queue>
 
   constructor(
     queues: Queues<QNs>,
+    queueOptions: QueueOptions,
     protected nameToQueue: NameToQueue<JNs, QNs>,
-    connection: typeof RedisConnection,
+    protected options: Options = {},
+    Connection?: typeof RedisConnection,
   ) {
-    this.queues = {} as Record<QNs, Queue>
+    const qIterator = Object.entries<QueueOptions | boolean | undefined | null>(queues)
 
-    for (const [name, options] of Object.entries<QueueOptions>(queues)) {
-      this.queues[name as QNs] = new Queue(name, options, connection)
+    for (const [qName, qOptions] of qIterator) {
+      if (qOptions) {
+        const queue = new Queue(
+          qName,
+          {
+            ...queueOptions,
+            ...(qOptions === true ? undefined : qOptions)
+          },
+          Connection
+        )
+        if (options.setupQueue) {
+          options.setupQueue(queue)
+        }
+        this.queues[qName as QNs] = queue
+      }      
     }
+  }
+
+  /**
+   * 
+   */
+  async waitUntilReady() {
+    await Promise.all(
+      Object.values<Queue>(this.queues).map((q) => q.waitUntilReady())
+    )
+  }
+
+  async close() {
+    await Promise.all(
+      Object.values<Queue>(this.queues).map((q) => q.close())
+    )
+  }
+
+  getQueue(name: QNs) {
+    return this.queues[name]
+  }
+
+  addJob() {
+    // TODO
+  }
+
+  addBulk(jobs: J[]) {
+    const jobsPerQueue = {} as Record<QNs, J[] | undefined>
+
+    for (const j of jobs) {
+      const queueName = this.getQueueNameByJobName(j.name)
+      let jobs = jobsPerQueue[queueName]
+      if (!jobs) {
+        jobsPerQueue[queueName] = jobs = []
+      }
+      jobs.push(j)
+    }
+    return Promise.all(
+      Object.entries<J[] | undefined>(jobsPerQueue)
+        .map(([queueName, jobs]) => this.queues[queueName as QNs].addBulk(jobs as J[]))
+    )
+  }
+
+  getQueueNameByJobName(name: JNs) {
+    return this.nameToQueue[name]
+  }
+}
+
+
+export class QueueFlowManager<
+  JNs extends string,
+  QNs extends string,
+  J extends DefaultJob<JNs>,
+> extends QueueManager<JNs, QNs, J> {
+
+  protected flowProducer: FlowProducer
+
+  constructor(
+    queues: Queues<QNs>,
+    queueOptions: QueueOptions,
+    protected nameToQueue: NameToQueue<JNs, QNs>,
+    options?: Options,
+    Connection?: typeof RedisConnection,
+  ) {
+    super(queues, queueOptions, nameToQueue, options, Connection)
+
+    this.flowProducer = new FlowProducer(queueOptions, Connection)
+  }
+
+  async waitUntilReady() {
+    await Promise.all([
+      super.waitUntilReady(),
+      this.flowProducer.close(),
+    ])
+  }
+
+  async close() {
+    await Promise.all([
+      super.close(),
+      this.flowProducer.close(),
+    ])
   }
 }

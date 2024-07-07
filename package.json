@@ -1,0 +1,33 @@
+{
+  "name": "bullmq-toolkit",
+  "version": "0.0.1",
+  "description": "Helper classes for efficient management of multiple BullMQ queues & workers",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arusakov/bullmq-toolkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arusakov/bullmq-toolkit/issues"
+  },
+  "main": "index.js",
+  "author": "Aleksandr Rusakov <aleksandr.s.rusakov@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/mocha": "10.0.7",
+    "bullmq": "5.8.3",
+    "c8": "10.1.2",
+    "ioredis": "5.4.1",
+    "mocha": "10.5.2",
+    "ts-node": "10.9.2",
+    "typescript": "5.5.2"
+  },
+  "peerDependencies": {
+    "bullmq": "^5.8.3"
+  },
+  "scripts": {
+    "compile": "tsc --noEmit -p .",
+    "compile:test": "tsc --noEmit -p test",
+    "test": "TS_NODE_PROJECT=test/tsconfig.json mocha",
+    "coverage": "c8 --reporter=text --reporter=text-summary yarn test"
+  }
+}

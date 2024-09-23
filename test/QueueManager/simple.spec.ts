@@ -1,20 +1,37 @@
+import { describe, it, before, after } from 'node:test'
+
 import Redis from 'ioredis'
-import { QueueManager } from '../../src'
+
+import { WorkerManager } from '../../src'
 
 describe('XXX', () => {
-  const connection = new Redis({ lazyConnect: true })
-  let queueManager: QueueManager<string, any, any>
+  const connection = new Redis({
+    lazyConnect: true,
+    maxRetriesPerRequest: null
+  })
+  // let queueManager: WorkerManager<string, any, any>
 
   before(async () => {
     await connection.connect()
   })
 
   after(async () => {
+    // await queueManager.close()
     await connection.quit()
   })
 
-  it('one queue', async () => {
-    queueManager = new QueueManager({ 'q': true }, { connection }, { 'name': 'q' })
-    queueManager.waitUntilReady
+  it('test', () => {
+  //   queueManager = new WorkerManager({
+  //     'xxx': true,      
+  //   },
+  //   async () => {},
+  //   {
+  //     connection,
+  //   },
+  //   {
+  //     setupWorker: (w) => {}
+  //   })
+
+  //   queueManager.run()
   })
 })

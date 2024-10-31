@@ -1,14 +1,9 @@
 import { describe, it, before, after } from 'node:test'
 
-import Redis from 'ioredis'
-
-import { WorkerManager } from '../../src'
+import { createRedis } from '../utils'
 
 describe('XXX', () => {
-  const connection = new Redis({
-    lazyConnect: true,
-    maxRetriesPerRequest: null
-  })
+  const connection = createRedis()
   // let queueManager: WorkerManager<string, any, any>
 
   before(async () => {

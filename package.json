@@ -31,7 +31,7 @@
     "build": "rm -rf dist && tsc -p . --outDir dist",
     "compile": "tsc --noEmit -p .",
     "compile:test": "tsc --noEmit -p test",
-    "test:all": "yarn test ./test/*.test.ts",
+    "test:all": "yarn test ./test/**/*.test.ts",
     "test:coverage": "c8 --reporter=lcovonly --reporter=text yarn test:all",
     "test": "node --test --test-concurrency=1 --require=ts-node/register"
   }

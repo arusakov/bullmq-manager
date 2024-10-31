@@ -75,11 +75,12 @@ export class QueueManager<
     return this.queues[name]
   }
 
-  addJob() {
-    // TODO
+  addJob(job: J) {
+    const queueName = this.getQueueNameByJobName(job.name)
+    return this.queues[queueName].add(job.name, job.data, job.opts)
   }
 
-  addBulk(jobs: J[]) {
+  addJobs(jobs: J[]) {
     const jobsPerQueue = {} as Record<QNs, J[] | undefined>
 
     for (const j of jobs) {

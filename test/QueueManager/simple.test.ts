@@ -20,6 +20,7 @@ describe('XXX', () => {
       },
       {}
     )
+    await queueManager.waitUntilReady()
   })
 
   after(async () => {

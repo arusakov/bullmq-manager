@@ -1,8 +1,13 @@
-import { FlowProducer, QueueOptions, RedisConnection } from 'bullmq'
+import { FlowProducer, JobNode, QueueOptions, RedisConnection } from 'bullmq'
 
 import type { DefaultJob, NameToQueue, Options, Queues } from './QueueManager'
 
 import { QueueManager } from './QueueManager'
+
+export type FlowJob<JN extends string, QNs extends string> = DefaultJob<JN> & {
+  queueName: QNs
+  children?: Array<FlowJob<JN, QNs>>
+}
 
 export class QueueFlowManager<
   JNs extends string,
@@ -24,10 +29,20 @@ export class QueueFlowManager<
     this.flowProducer = new FlowProducer(queueOptions, Connection)
   }
 
+  addFlow(jobTree: FlowJob<JNs, QNs>): Promise<JobNode> {
+    return this.flowProducer.add(jobTree)
+  }
+
+  addBulkFlow(jobTrees: FlowJob<JNs, QNs>[]): Promise<JobNode[]> {
+    return Promise.all(
+      jobTrees.map(jobTree => this.flowProducer.add(jobTree))
+    )
+  }
+
   async waitUntilReady() {
     await Promise.all([
       super.waitUntilReady(),
-      this.flowProducer.close(),
+      this.flowProducer.waitUntilReady(),
     ])
   }
 

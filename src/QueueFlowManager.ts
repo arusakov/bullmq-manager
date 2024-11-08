@@ -2,19 +2,12 @@ import { FlowProducer, JobNode, QueueOptions, RedisConnection } from 'bullmq'
 
 import type { DefaultJob, NameToQueue, Options, Queues } from './QueueManager'
 
-import { QueueManager } from './QueueManager'
-
-export type FlowJob<JN extends string> = DefaultJob<JN> & {
-  children?: Array<FlowJob<JN>>
-}
-
+import { QueueManager, FlowJob } from './QueueManager'
 
 export type FlowJobReal<JN extends string> = FlowJob<JN> & {
   queueName: string
   children?: Array<FlowJobReal<JN>>
 }
-
-
 
 export class QueueFlowManager<
   JNs extends string,

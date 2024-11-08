@@ -1,24 +1,37 @@
 import { describe, it, before, after } from 'node:test'
-
-import { QueueManager, type DefaultJob } from '../../src/QueueManager'
+import { equal } from 'assert'
+import { QueueOptions } from 'bullmq'
+import { QueueManager, DefaultJob, Queues, NameToQueue } from '../../src/QueueManager'
 
 import { createRedis } from '../utils'
 
+describe('Queue manager', () => {
+  type JobNames = 'Job1' | 'Job2'
+  type QueueNames = 'Queue1' | 'Queue2'
 
-describe('XXX', () => {
   const connection = createRedis()
-  let queueManager: QueueManager<string, string, DefaultJob<string>>
+  let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
 
   before(async () => {
     await connection.connect()
-    queueManager = new QueueManager(
-      {
-        default: true,
-      },
-      {
-        connection,
-      },
-      {}
+    const queues: Queues<QueueNames> = {
+      Queue1: true,
+      Queue2: true,
+    }
+
+    const queueOptions: QueueOptions = {
+      connection: connection,
+    }
+
+    const nameToQueue: NameToQueue<JobNames, QueueNames> = {
+      Job1: 'Queue1',
+      Job2: 'Queue2',
+    }
+
+    queueManager = new QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>(
+      queues,
+      queueOptions,
+      nameToQueue
     )
     await queueManager.waitUntilReady()
   })
@@ -28,18 +41,26 @@ describe('XXX', () => {
     await connection.quit()
   })
 
-  it('test', () => {
-  //   queueManager = new WorkerManager({
-  //     'xxx': true,      
-  //   },
-  //   async () => {},
-  //   {
-  //     connection,
-  //   },
-  //   {
-  //     setupWorker: (w) => {}
-  //   })
+  it('Add job in queue', async () => {
+    const newJob: DefaultJob<JobNames> = { name: 'Job1', data: {} }
 
-  //   queueManager.run()
+    const job = await queueManager.addJob(newJob)
+
+    equal(job.queueName, 'Queue1')
+  })
+
+  it('test', () => {
+    //   queueManager = new WorkerManager({
+    //     'xxx': true,      
+    //   },
+    //   async () => {},
+    //   {
+    //     connection,
+    //   },
+    //   {
+    //     setupWorker: (w) => {}
+    //   })
+
+    //   queueManager.run()
   })
 })

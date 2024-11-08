@@ -4,10 +4,17 @@ import type { DefaultJob, NameToQueue, Options, Queues } from './QueueManager'
 
 import { QueueManager } from './QueueManager'
 
-export type FlowJob<JN extends string, QNs extends string> = DefaultJob<JN> & {
-  queueName: QNs
-  children?: Array<FlowJob<JN, QNs>>
+export type FlowJob<JN extends string> = DefaultJob<JN> & {
+  children?: Array<FlowJob<JN>>
 }
+
+
+export type FlowJobReal<JN extends string> = FlowJob<JN> & {
+  queueName: string
+  children?: Array<FlowJobReal<JN>>
+}
+
+
 
 export class QueueFlowManager<
   JNs extends string,
@@ -29,14 +36,14 @@ export class QueueFlowManager<
     this.flowProducer = new FlowProducer(queueOptions, Connection)
   }
 
-  addFlow(jobTree: FlowJob<JNs, QNs>): Promise<JobNode> {
-    return this.flowProducer.add(jobTree)
+  async addFlowJob(job: FlowJob<JNs>) {
+    const flowJobWithQueueNames = this.resolveQueueNames(job)
+    return this.flowProducer.add(flowJobWithQueueNames)
   }
 
-  addBulkFlow(jobTrees: FlowJob<JNs, QNs>[]): Promise<JobNode[]> {
-    return Promise.all(
-      jobTrees.map(jobTree => this.flowProducer.add(jobTree))
-    )
+  async addFlowJobs(jobs: FlowJob<JNs>[]) {
+    const flowJobsWithQueueNames = jobs.map(job => this.resolveQueueNames(job))
+    return this.flowProducer.addBulk(flowJobsWithQueueNames)
   }
 
   async waitUntilReady() {
@@ -52,4 +59,15 @@ export class QueueFlowManager<
       this.flowProducer.close(),
     ])
   }
+
+  private resolveQueueNames(job: FlowJob<JNs>): FlowJobReal<JNs> {
+    const queueName = this.getQueueNameByJobName(job.name)
+    const resolvedJob: FlowJobReal<JNs> = {
+      ...job,
+      queueName,
+      children: job.children?.map(child => this.resolveQueueNames(child))
+    }
+    return resolvedJob
+  }
+
 }

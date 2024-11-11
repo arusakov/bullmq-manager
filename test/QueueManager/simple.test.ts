@@ -1,5 +1,5 @@
-import { describe, it, before, after, afterEach } from 'node:test'
-import { equal, throws } from 'assert'
+import { describe, it, before, after, afterEach, only } from 'node:test'
+import { equal, fail, strictEqual } from 'assert'
 import { QueueOptions } from 'bullmq'
 import { QueueManager, DefaultJob, Queues, NameToQueue } from '../../src/QueueManager'
 
@@ -45,28 +45,35 @@ describe('Queue manager', () => {
   })
 
   afterEach(async () => {
-    queueManager.getQueue('Queue1').drain()
-    queueManager.getQueue('Queue2').drain()
+    await queueManager.getQueue('Queue1').drain()
+    await queueManager.getQueue('Queue2').drain()
   })
 
   after(async () => {
-
-    await queueManager.close()
+    try {
+      await queueManager.close()
+    }
+    catch (err) { }
     await connection.quit()
   })
 
   it('Add job in queue', async () => {
 
     const job = await queueManager.addJob(newJob)
+    const queue1Jobs = await queueManager.getQueue('Queue1').getWaiting()
 
     if (job) {
       equal(job.queueName, 'Queue1')
       equal(job.name, 'Job1')
+      equal(queue1Jobs.length, 1)
+
     }
   })
 
   it('Add jobs in queue', async () => {
     const newJobs: DefaultJob<JobNames>[] = [{ name: 'Job1', data: {} }, { name: 'Job1', data: {} }, { name: 'Job2', data: {} }]
+
+    queueManager.addJobs(newJobs)
 
     const queue1Jobs = await queueManager.getQueue('Queue1').getWaiting()
     const queue2Jobs = await queueManager.getQueue('Queue2').getWaiting()
@@ -93,11 +100,16 @@ describe('Queue manager', () => {
 
   it('close', async () => {
     await queueManager.close()
-    await queueManager.addJob(newJob)
 
-    const queue1 = queueManager.getQueue('Queue1')
-    const jobCount = await queue1.count()
-
-    equal(jobCount, 0)
+    try {
+      await queueManager.addJob(newJob)
+      fail("Expected an error, but none was thrown")
+    } catch (error) {
+      if (error instanceof Error) {
+        strictEqual(error.message, 'QueueManager is closed');
+      } else {
+        fail("Caught an error, but it was not of type Error");
+      }
+    }
   })
 })

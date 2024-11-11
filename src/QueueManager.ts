@@ -28,6 +28,7 @@ export class QueueManager<
   J extends DefaultJob<JNs>,
 > {
   protected queues = {} as Record<QNs, Queue>
+  protected isClosed = false
 
   constructor(
     queues: Queues<QNs>,
@@ -52,7 +53,7 @@ export class QueueManager<
           options.setupQueue(queue)
         }
         this.queues[qName as QNs] = queue
-      }      
+      }
     }
   }
 
@@ -66,6 +67,7 @@ export class QueueManager<
   }
 
   async close() {
+    this.isClosed = true
     await Promise.all(
       Object.values<Queue>(this.queues).map((q) => q.close())
     )
@@ -76,25 +78,30 @@ export class QueueManager<
   }
 
   addJob(job: J) {
-    const queueName = this.getQueueNameByJobName(job.name)
-    return this.queues[queueName].add(job.name, job.data, job.opts)
+    if (!this.isClosed) {
+      const queueName = this.getQueueNameByJobName(job.name)
+      return this.queues[queueName].add(job.name, job.data, job.opts)
+    }
   }
 
   addJobs(jobs: J[]) {
-    const jobsPerQueue = {} as Record<QNs, J[] | undefined>
+    if (!this.isClosed) {
 
-    for (const j of jobs) {
-      const queueName = this.getQueueNameByJobName(j.name)
-      let jobs = jobsPerQueue[queueName]
-      if (!jobs) {
-        jobsPerQueue[queueName] = jobs = []
+      const jobsPerQueue = {} as Record<QNs, J[] | undefined>
+
+      for (const j of jobs) {
+        const queueName = this.getQueueNameByJobName(j.name)
+        let jobs = jobsPerQueue[queueName]
+        if (!jobs) {
+          jobsPerQueue[queueName] = jobs = []
+        }
+        jobs.push(j)
       }
-      jobs.push(j)
+      return Promise.all(
+        Object.entries<J[] | undefined>(jobsPerQueue)
+          .map(([queueName, jobs]) => this.queues[queueName as QNs].addBulk(jobs as J[]))
+      )
     }
-    return Promise.all(
-      Object.entries<J[] | undefined>(jobsPerQueue)
-        .map(([queueName, jobs]) => this.queues[queueName as QNs].addBulk(jobs as J[]))
-    )
   }
 
   getQueueNameByJobName(name: JNs) {

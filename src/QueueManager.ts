@@ -1,4 +1,4 @@
-import { Queue, FlowProducer } from 'bullmq'
+import { Queue } from 'bullmq'
 import type { QueueOptions, RedisConnection, DefaultJobOptions } from 'bullmq'
 
 export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
@@ -67,10 +67,13 @@ export class QueueManager<
   }
 
   async close() {
+    if (this.isClosed) {
+      throw new Error('QueueManager is already closed')
+    }
     this.isClosed = true
     await Promise.all(
-      Object.values<Queue>(this.queues).map((q) => q.close())
-    )
+      Object.values<Queue>(this.queues).map((q) => { q.close() }))
+
   }
 
   getQueue(name: QNs) {
@@ -78,30 +81,32 @@ export class QueueManager<
   }
 
   addJob(job: J) {
-    if (!this.isClosed) {
-      const queueName = this.getQueueNameByJobName(job.name)
-      return this.queues[queueName].add(job.name, job.data, job.opts)
+    if (this.isClosed) {
+      throw new Error('QueueManager is closed')
     }
+    const queueName = this.getQueueNameByJobName(job.name)
+    return this.queues[queueName].add(job.name, job.data, job.opts)
+
   }
 
   addJobs(jobs: J[]) {
-    if (!this.isClosed) {
-
-      const jobsPerQueue = {} as Record<QNs, J[] | undefined>
-
-      for (const j of jobs) {
-        const queueName = this.getQueueNameByJobName(j.name)
-        let jobs = jobsPerQueue[queueName]
-        if (!jobs) {
-          jobsPerQueue[queueName] = jobs = []
-        }
-        jobs.push(j)
-      }
-      return Promise.all(
-        Object.entries<J[] | undefined>(jobsPerQueue)
-          .map(([queueName, jobs]) => this.queues[queueName as QNs].addBulk(jobs as J[]))
-      )
+    if (this.isClosed) {
+      throw new Error('QueueManager is closed')
     }
+
+    const jobsPerQueue = {} as Record<QNs, J[] | undefined>
+    for (const j of jobs) {
+      const queueName = this.getQueueNameByJobName(j.name)
+      let jobs = jobsPerQueue[queueName]
+      if (!jobs) {
+        jobsPerQueue[queueName] = jobs = []
+      }
+      jobs.push(j)
+    }
+    return Promise.all(
+      Object.entries<J[] | undefined>(jobsPerQueue)
+        .map(([queueName, jobs]) => this.queues[queueName as QNs].addBulk(jobs as J[]))
+    )
   }
 
   getQueueNameByJobName(name: JNs) {

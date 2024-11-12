@@ -18,10 +18,11 @@ export class WorkerManager<
   J extends DefaultJob<JNs>,
 > {
   protected workers = {} as Record<QNs, Worker>
+  protected isClosed = false
 
   constructor(
     workers: Workers<QNs>,
-    processor: (job: Job) => Promise<unknown>, 
+    processor: (job: Job) => Promise<unknown>,
     workerOptions: WorkerOptions,
     protected options: WorkerManagerOptions,
     Connection?: typeof RedisConnection,
@@ -43,7 +44,7 @@ export class WorkerManager<
           options.setupWorker(worker)
         }
         this.workers[wName as QNs] = worker
-      }      
+      }
     }
   }
 
@@ -60,8 +61,12 @@ export class WorkerManager<
   }
 
   async close() {
+    if (this.isClosed) {
+      throw new Error('WorkerManager is already closed')
+    }
+    this.isClosed = true
     await Promise.all(
-      Object.values<Worker>(this.workers).map((q) => q.close())
+      Object.values<Worker>(this.workers).map((w) => w.close())
     )
   }
 

@@ -1,7 +1,7 @@
 import { describe, it, before, after, afterEach, only } from 'node:test'
 import { equal, fail, strictEqual } from 'assert'
-import { QueueOptions } from 'bullmq'
-import { QueueManager, DefaultJob, Queues, NameToQueue } from '../../src/QueueManager'
+import { QueueOptions, Queue } from 'bullmq'
+import { QueueManager, DefaultJob, Queues, NameToQueue, Options } from '../../src/QueueManager'
 
 import { createRedis } from '../utils'
 import { WorkerManager } from '../../src/WorkerManager'
@@ -19,7 +19,6 @@ describe('Queue manager', () => {
 
   before(async () => {
 
-
     await connection.connect()
     const queues: Queues<QueueNames> = {
       Queue1: true,
@@ -28,6 +27,14 @@ describe('Queue manager', () => {
 
     const queueOptions: QueueOptions = {
       connection: connection,
+      streams: {
+        events: {
+          maxLen: 0
+        }
+      },
+      defaultJobOptions: {
+        attempts: 0
+      }
     }
 
     const nameToQueue: NameToQueue<JobNames, QueueNames> = {
@@ -35,12 +42,22 @@ describe('Queue manager', () => {
       Job2: 'Queue2',
     }
 
+    const options: Options = {
+      setupQueue: (queue: Queue) => {
+        if (!queue.opts.defaultJobOptions) {
+          queue.opts.defaultJobOptions = {}
+        }
+        queue.opts.defaultJobOptions.attempts = 3
+      }
+    }
+
     queueManager = new QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>(
       queues,
       queueOptions,
       nameToQueue,
-
+      options
     )
+
     await queueManager.waitUntilReady()
   })
 
@@ -55,6 +72,11 @@ describe('Queue manager', () => {
     }
     catch (err) { }
     await connection.quit()
+  })
+
+  it('Setup options', () => {
+    const queue = queueManager.getQueue('Queue1')
+    equal(queue.defaultJobOptions.attempts, 3)
   })
 
   it('Add job in queue', async () => {

@@ -1,8 +1,13 @@
-import { FlowProducer, QueueOptions, RedisConnection } from 'bullmq'
+import { FlowProducer, JobNode, QueueOptions, RedisConnection } from 'bullmq'
 
 import type { DefaultJob, NameToQueue, Options, Queues } from './QueueManager'
 
-import { QueueManager } from './QueueManager'
+import { QueueManager, FlowJob } from './QueueManager'
+
+export type FlowJobReal<JN extends string> = FlowJob<JN> & {
+  queueName: string
+  children?: Array<FlowJobReal<JN>>
+}
 
 export class QueueFlowManager<
   JNs extends string,
@@ -24,10 +29,20 @@ export class QueueFlowManager<
     this.flowProducer = new FlowProducer(queueOptions, Connection)
   }
 
+  async addFlowJob(job: FlowJob<JNs>) {
+    const flowJobWithQueueNames = this.resolveQueueNames(job)
+    return this.flowProducer.add(flowJobWithQueueNames)
+  }
+
+  async addFlowJobs(jobs: FlowJob<JNs>[]) {
+    const flowJobsWithQueueNames = jobs.map(job => this.resolveQueueNames(job))
+    return this.flowProducer.addBulk(flowJobsWithQueueNames)
+  }
+
   async waitUntilReady() {
     await Promise.all([
       super.waitUntilReady(),
-      this.flowProducer.close(),
+      this.flowProducer.waitUntilReady(),
     ])
   }
 
@@ -37,4 +52,15 @@ export class QueueFlowManager<
       this.flowProducer.close(),
     ])
   }
+
+  private resolveQueueNames(job: FlowJob<JNs>): FlowJobReal<JNs> {
+    const queueName = this.getQueueNameByJobName(job.name)
+    const resolvedJob: FlowJobReal<JNs> = {
+      ...job,
+      queueName,
+      children: job.children?.map(child => this.resolveQueueNames(child))
+    }
+    return resolvedJob
+  }
+
 }

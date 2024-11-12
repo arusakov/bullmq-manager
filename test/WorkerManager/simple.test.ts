@@ -18,7 +18,10 @@ describe('Worker manager', () => {
     before(async () => {
         await connection.connect()
         const workers: Workers<QueueNames> = {
-            Queue1: true,
+            Queue1: {
+                connection: connection,
+                concurrency: 5
+            },
             Queue2: true,
         }
 
@@ -35,11 +38,7 @@ describe('Worker manager', () => {
             concurrency: 1
         }
 
-        const options: WorkerManagerOptions = {
-            setupWorker: (worker: Worker) => {
-                worker.opts.concurrency = 5
-            }
-        }
+        const options: WorkerManagerOptions = {}
 
         workerManager = new WorkerManager<JobNames, QueueNames, DefaultJob<JobNames>>(
             workers,
@@ -94,6 +93,9 @@ describe('Worker manager', () => {
     it('setup options', () => {
         const worker = workerManager.getWorker('Queue1')
         equal(worker.opts.concurrency, 5)
+
+        const worker2 = workerManager.getWorker('Queue2')
+        equal(worker2.opts.concurrency, 1)
     })
 
     it('get workers', () => {

@@ -21,9 +21,14 @@ describe('Queue manager', () => {
 
     await connection.connect()
     const queues: Queues<QueueNames> = {
-      Queue1: true,
+      Queue1: {
+        connection: connection,
+        defaultJobOptions: {
+          attempts: 5
+        },
+      },
       Queue2: true,
-    }
+    };
 
     const queueOptions: QueueOptions = {
       connection: connection,
@@ -42,20 +47,10 @@ describe('Queue manager', () => {
       Job2: 'Queue2',
     }
 
-    const options: Options = {
-      setupQueue: (queue: Queue) => {
-        if (!queue.opts.defaultJobOptions) {
-          queue.opts.defaultJobOptions = {}
-        }
-        queue.opts.defaultJobOptions.attempts = 3
-      }
-    }
-
     queueManager = new QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>(
       queues,
       queueOptions,
       nameToQueue,
-      options
     )
 
     await queueManager.waitUntilReady()
@@ -76,7 +71,10 @@ describe('Queue manager', () => {
 
   it('Setup options', () => {
     const queue = queueManager.getQueue('Queue1')
-    equal(queue.defaultJobOptions.attempts, 3)
+    equal(queue.defaultJobOptions.attempts, 5)
+
+    const queue2 = queueManager.getQueue('Queue2')
+    equal(queue2.defaultJobOptions.attempts, 0)
   })
 
   it('Add job in queue', async () => {

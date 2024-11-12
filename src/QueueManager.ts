@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq'
-import type { QueueOptions, RedisConnection, DefaultJobOptions } from 'bullmq'
+import type { QueueOptions, RedisConnection, DefaultJobOptions, QueueListener } from 'bullmq'
 
 export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
 export type NameToQueue<JN extends string, QN extends string> = Record<JN, QN>
@@ -13,14 +13,7 @@ export type FlowJob<JN extends string> = DefaultJob<JN> & {
   children?: Array<FlowJob<JN>>
 }
 
-export type Options = {
-  /**
-   * 
-   * @param queue - instance of Queue for additional setup (event handling) 
-   * @returns {void}
-   */
-  setupQueue?: (queue: Queue) => void
-}
+export type Options = {}
 
 export class QueueManager<
   JNs extends string,
@@ -49,17 +42,12 @@ export class QueueManager<
           },
           Connection
         )
-        if (options.setupQueue) {
-          options.setupQueue(queue)
-        }
+
         this.queues[qName as QNs] = queue
       }
     }
   }
 
-  /**
-   * 
-   */
   async waitUntilReady() {
     await Promise.all(
       Object.values<Queue>(this.queues).map((q) => q.waitUntilReady())
@@ -112,4 +100,5 @@ export class QueueManager<
   getQueueNameByJobName(name: JNs) {
     return this.nameToQueue[name]
   }
+
 }

@@ -3,14 +3,7 @@ import type { DefaultJob } from './QueueManager'
 
 export type Workers<QN extends string> = Record<QN, WorkerOptions | boolean | undefined | null>
 
-export type WorkerManagerOptions = {
-  /**
-   * 
-   * @param worker - instance of Worker for additional setup (event handling) 
-   * @returns {void}
-   */
-  setupWorker?: (worker: Worker) => void
-}
+export type WorkerManagerOptions = {}
 
 export class WorkerManager<
   JNs extends string,
@@ -40,13 +33,12 @@ export class WorkerManager<
           },
           Connection
         )
-        if (options.setupWorker) {
-          options.setupWorker(worker)
-        }
+
         this.workers[wName as QNs] = worker
       }
     }
   }
+
 
   run() {
     for (const w of Object.values<Worker>(this.workers)) {

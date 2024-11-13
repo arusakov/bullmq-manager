@@ -1,7 +1,8 @@
-import { RedisConnection, Worker, WorkerOptions, Processor, Job } from 'bullmq'
+import { RedisConnection, Worker, WorkerOptions, Processor, Job, WorkerListener } from 'bullmq'
 import type { DefaultJob } from './QueueManager'
 
 export type Workers<QN extends string> = Record<QN, WorkerOptions | boolean | undefined | null>
+
 
 export type WorkerManagerOptions = {}
 
@@ -39,6 +40,26 @@ export class WorkerManager<
     }
   }
 
+  on<U extends keyof WorkerListener<any, any, string>>(event: U, listener: WorkerListener<any, any, string>[U]) {
+    for (const wName of Object.keys(this.workers) as QNs[]) {
+      const worker = this.getWorker(wName)
+      worker.on(event, listener)
+    }
+  }
+
+  once<U extends keyof WorkerListener<any, any, string>>(event: U, listener: WorkerListener<any, any, string>[U]) {
+    for (const wName of Object.keys(this.workers) as QNs[]) {
+      const worker = this.getWorker(wName)
+      worker.once(event, listener)
+    }
+  }
+
+  off<U extends keyof WorkerListener<any, any, string>>(event: U, listener: WorkerListener<any, any, string>[U]) {
+    for (const wName of Object.keys(this.workers) as QNs[]) {
+      const worker = this.getWorker(wName)
+      worker.off(event, listener)
+    }
+  }
 
   run() {
     for (const w of Object.values<Worker>(this.workers)) {

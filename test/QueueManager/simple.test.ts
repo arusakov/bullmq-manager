@@ -1,10 +1,10 @@
-import { describe, it, before, after, afterEach, only } from 'node:test'
+import { describe, it, before, after, afterEach } from 'node:test'
 import { equal, fail, strictEqual } from 'assert'
-import { QueueOptions, Queue } from 'bullmq'
+import { QueueOptions, Job } from 'bullmq'
+
 import { QueueManager, DefaultJob, Queues, NameToQueue, Options } from '../../src/QueueManager'
 
 import { createRedis } from '../utils'
-import { WorkerManager } from '../../src/WorkerManager'
 
 describe('Queue manager', () => {
   type JobNames = 'Job1' | 'Job2'
@@ -13,6 +13,12 @@ describe('Queue manager', () => {
   const connection = createRedis()
   connection.on('connect', () => console.log('Connection connect'))
   connection.on('close', () => console.log('Connection closed'))
+
+  let isListenerCalled = false
+  const listenerOn = (job: Job) => {
+    isListenerCalled = true
+    console.log(`Job.id=${job.id} is waiting`)
+  }
 
   let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
   const newJob: DefaultJob<JobNames> = { name: 'Job1', data: {} }
@@ -116,6 +122,45 @@ describe('Queue manager', () => {
 
     const queue2 = queueManager.getQueue('Queue2')
     equal(queue2.name, 'Queue2')
+  })
+
+  it('listener on', async () => {
+
+    queueManager.on('waiting', listenerOn)
+
+    await queueManager.addJob(newJob)
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    const listenersArray = queueManager.getQueue('Queue1').listeners('waiting')
+    equal(listenersArray.length, 1)
+    equal(isListenerCalled, true)
+  })
+
+  it('listener off', async () => {
+    let isListenerCalled = false
+
+    queueManager.off('waiting', listenerOn)
+
+    await queueManager.addJob(newJob)
+
+    const listenersArray = queueManager.getQueue('Queue1').listeners('waiting')
+    equal(listenersArray.length, 0)
+    equal(isListenerCalled, false)
+  })
+
+  it('listener once', async () => {
+    let callCount = 0
+
+    queueManager.once('paused', () => {
+      callCount++;
+      console.log(`Queue paused`)
+    })
+
+    await queueManager.getQueue('Queue1').pause()
+    await queueManager.getQueue('Queue1').pause()
+
+    equal(callCount, 1)
+
   })
 
   it('close', async () => {

@@ -1,5 +1,5 @@
-import { Queue } from 'bullmq'
-import type { QueueOptions, RedisConnection, DefaultJobOptions, QueueListener } from 'bullmq'
+import { Queue, QueueListener } from 'bullmq'
+import type { QueueOptions, RedisConnection, DefaultJobOptions } from 'bullmq'
 
 export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
 export type NameToQueue<JN extends string, QN extends string> = Record<JN, QN>
@@ -45,6 +45,30 @@ export class QueueManager<
 
         this.queues[qName as QNs] = queue
       }
+    }
+  }
+
+  on<U extends keyof QueueListener<any, any, string>>(event: U, listener: QueueListener<any, any, string>[U]) {
+
+    for (const qName of Object.keys(this.queues) as QNs[]) {
+      const queue = this.getQueue(qName)
+      queue.on(event, listener)
+    }
+  }
+
+  once<U extends keyof QueueListener<any, any, string>>(event: U, listener: QueueListener<any, any, string>[U]) {
+
+    for (const qName of Object.keys(this.queues) as QNs[]) {
+      const queue = this.getQueue(qName)
+      queue.once(event, listener)
+    }
+  }
+
+  off<U extends keyof QueueListener<any, any, string>>(event: U, listener: QueueListener<any, any, string>[U]) {
+
+    for (const qName of Object.keys(this.queues) as QNs[]) {
+      const queue = this.getQueue(qName)
+      queue.off(event, listener)
     }
   }
 

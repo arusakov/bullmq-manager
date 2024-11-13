@@ -9,11 +9,17 @@ import { createRedis } from '../utils'
 describe('Worker manager', () => {
     type JobNames = 'Job1' | 'Job2'
     type QueueNames = 'Queue1' | 'Queue2'
+    let isListenerCalled = false
 
     const connection = createRedis()
     let workerManager: WorkerManager<JobNames, QueueNames, DefaultJob<JobNames>>
     let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
     const newJob: DefaultJob<JobNames> = { name: 'Job1', data: {} }
+
+    const listenerOn = () => {
+        isListenerCalled = true
+        console.log(`Worker is active`)
+    }
 
     before(async () => {
         await connection.connect()
@@ -46,7 +52,6 @@ describe('Worker manager', () => {
             workerOptions,
             options
         )
-        await workerManager.waitUntilReady()
 
         const queues: Queues<QueueNames> = {
             Queue1: true,
@@ -73,6 +78,7 @@ describe('Worker manager', () => {
             nameToQueue
         )
         await queueManager.waitUntilReady()
+        await workerManager.waitUntilReady()
     })
 
     after(async () => {
@@ -110,6 +116,46 @@ describe('Worker manager', () => {
 
         const isRunning2 = workerManager.getWorker('Queue2').isRunning() === true
         equal(isRunning2, true)
+    })
+
+    it('listener on', async () => {
+
+        await queueManager.getQueue('Queue1').resume()
+        workerManager.on('active', listenerOn)
+
+        await queueManager.addJob(newJob)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        const listenersArray = workerManager.getWorker('Queue1').listeners('active')
+        equal(listenersArray.length, 1)
+        equal(isListenerCalled, true)
+    })
+
+    it('listener off', async () => {
+        isListenerCalled = false
+
+        workerManager.off('active', listenerOn)
+
+        await queueManager.addJob(newJob)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        const listenersArray = workerManager.getWorker('Queue1').listeners('active')
+        equal(listenersArray.length, 0)
+        equal(isListenerCalled, false)
+    })
+
+    it('listener once', async () => {
+        let callCount = 0
+
+        workerManager.once('paused', () => {
+            callCount++;
+            console.log(`Worker paused`)
+        })
+
+        await workerManager.getWorker('Queue1').pause()
+        await workerManager.getWorker('Queue1').pause()
+
+        equal(callCount, 1)
     })
 
     it('close all workers', async () => {

@@ -1,20 +1,17 @@
 import { describe, it, before, after, afterEach, only } from 'node:test'
-import { equal, fail, strictEqual, deepStrictEqual } from 'assert'
-import { FlowProducer, QueueOptions, RedisConnection, Queue } from 'bullmq'
-import type { FlowJobReal } from '../../src/QueueFlowManager'
+import { equal, deepStrictEqual } from 'assert'
+import { QueueOptions, Queue } from 'bullmq'
 import { QueueFlowManager } from '../../src/QueueFlowManager'
 import type { DefaultJob, NameToQueue, Options, Queues, FlowJob } from '../../src/QueueManager'
 
 
 import { createRedis } from '../utils'
 
-describe('Queue manager', () => {
+describe('Queue Flow manager', () => {
     type JobNames = 'Job1' | 'Job2'
     type QueueNames = 'Queue1' | 'Queue2'
 
     const connection = createRedis()
-    connection.on('connect', () => console.log('Connection connect'))
-    connection.on('close', () => console.log('Connection closed'))
 
     let flowQueueManager: QueueFlowManager<JobNames, QueueNames, DefaultJob<JobNames>>
     const childrenJob: FlowJob<JobNames> = { name: 'Job2', data: {} }
@@ -70,21 +67,20 @@ describe('Queue manager', () => {
         )
 
         await flowQueueManager.waitUntilReady()
+
     })
 
     afterEach(async () => {
 
         const queue1 = flowQueueManager.getQueue('Queue1')
         const queue2 = flowQueueManager.getQueue('Queue2')
+
         await Promise.all([drainQueue(queue1), drainQueue(queue2)])
-        console.log('Queues drained')
     })
 
     after(async () => {
-        try {
-            await flowQueueManager.close()
-        }
-        catch (err) { }
+
+        await flowQueueManager.close()
         await connection.quit()
     })
 

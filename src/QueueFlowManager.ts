@@ -1,4 +1,4 @@
-import { FlowProducer, JobNode, QueueOptions, RedisConnection } from 'bullmq'
+import { FlowProducer, QueueOptions, RedisConnection } from 'bullmq'
 
 import type { DefaultJob, NameToQueue, Options, Queues } from './QueueManager'
 
@@ -30,6 +30,7 @@ export class QueueFlowManager<
     this.flowProducer = new FlowProducer(queueOptions, Connection)
   }
 
+
   async addFlowJob(job: FlowJob<JNs>) {
     const flowJobWithQueueNames = this.resolveQueueNames(job)
     return this.flowProducer.add(flowJobWithQueueNames)
@@ -37,6 +38,7 @@ export class QueueFlowManager<
 
   async addFlowJobs(jobs: FlowJob<JNs>[]) {
     const flowJobsWithQueueNames = jobs.map(job => this.resolveQueueNames(job))
+
     return this.flowProducer.addBulk(flowJobsWithQueueNames)
   }
 
@@ -52,8 +54,8 @@ export class QueueFlowManager<
       throw new Error('QueueFlowManager is already closed')
     }
     await Promise.all([
-      super.close(),
       this.flowProducer.close(),
+      super.close(),
     ])
   }
 

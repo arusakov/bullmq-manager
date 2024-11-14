@@ -1,4 +1,4 @@
-import { Queue, FlowProducer } from 'bullmq'
+import { Queue, QueueListener } from 'bullmq'
 import type { QueueOptions, RedisConnection, DefaultJobOptions } from 'bullmq'
 
 export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
@@ -9,18 +9,13 @@ export type DefaultJob<JN extends string> = {
   opts?: DefaultJobOptions
 }
 
+export type ConnectionStatus = 'connected' | 'disconnected' | 'closed'
+
 export type FlowJob<JN extends string> = DefaultJob<JN> & {
   children?: Array<FlowJob<JN>>
 }
 
-export type Options = {
-  /**
-   * 
-   * @param queue - instance of Queue for additional setup (event handling) 
-   * @returns {void}
-   */
-  setupQueue?: (queue: Queue) => void
-}
+export type Options = {}
 
 export class QueueManager<
   JNs extends string,
@@ -28,6 +23,7 @@ export class QueueManager<
   J extends DefaultJob<JNs>,
 > {
   protected queues = {} as Record<QNs, Queue>
+  protected connectionStatus: ConnectionStatus = 'disconnected'
 
   constructor(
     queues: Queues<QNs>,
@@ -48,27 +44,46 @@ export class QueueManager<
           },
           Connection
         )
-        if (options.setupQueue) {
-          options.setupQueue(queue)
-        }
+
         this.queues[qName as QNs] = queue
-      }      
+      }
     }
   }
 
-  /**
-   * 
-   */
+  on<U extends keyof QueueListener<any, any, string>>(event: U, listener: QueueListener<any, any, string>[U]) {
+
+    for (const qName of Object.keys(this.queues) as QNs[]) {
+      const queue = this.getQueue(qName)
+      queue.on(event, listener)
+    }
+  }
+
+  once<U extends keyof QueueListener<any, any, string>>(event: U, listener: QueueListener<any, any, string>[U]) {
+
+    for (const qName of Object.keys(this.queues) as QNs[]) {
+      const queue = this.getQueue(qName)
+      queue.once(event, listener)
+    }
+  }
+
   async waitUntilReady() {
+    if (this.connectionStatus != 'connected') {
+      this.connectionStatus = 'connected'
+    } else {
+      throw new Error(`${this.constructor.name} is already connected`)
+    }
     await Promise.all(
       Object.values<Queue>(this.queues).map((q) => q.waitUntilReady())
     )
   }
 
   async close() {
+    this.checkConnectionStatus()
+    this.connectionStatus = 'closed'
+
     await Promise.all(
-      Object.values<Queue>(this.queues).map((q) => q.close())
-    )
+      Object.values<Queue>(this.queues).map((q) => { q.close() }))
+
   }
 
   getQueue(name: QNs) {
@@ -76,13 +91,17 @@ export class QueueManager<
   }
 
   addJob(job: J) {
+    this.checkConnectionStatus()
+
     const queueName = this.getQueueNameByJobName(job.name)
     return this.queues[queueName].add(job.name, job.data, job.opts)
+
   }
 
   addJobs(jobs: J[]) {
-    const jobsPerQueue = {} as Record<QNs, J[] | undefined>
+    this.checkConnectionStatus()
 
+    const jobsPerQueue = {} as Record<QNs, J[] | undefined>
     for (const j of jobs) {
       const queueName = this.getQueueNameByJobName(j.name)
       let jobs = jobsPerQueue[queueName]
@@ -100,4 +119,13 @@ export class QueueManager<
   getQueueNameByJobName(name: JNs) {
     return this.nameToQueue[name]
   }
+
+  private checkConnectionStatus() {
+    if (this.connectionStatus === 'disconnected') {
+      throw new Error(`${this.constructor.name} is disconnected`)
+    } else if (this.connectionStatus === 'closed') {
+      throw new Error(`${this.constructor.name} is closed`)
+    }
+  }
+
 }

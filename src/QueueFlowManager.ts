@@ -16,7 +16,6 @@ export class QueueFlowManager<
 > extends QueueManager<JNs, QNs, J> {
 
   protected flowProducer: FlowProducer
-  protected isClosed: boolean = false
 
   constructor(
     queues: Queues<QNs>,
@@ -38,7 +37,6 @@ export class QueueFlowManager<
 
   async addFlowJobs(jobs: FlowJob<JNs>[]) {
     const flowJobsWithQueueNames = jobs.map(job => this.resolveQueueNames(job))
-
     return this.flowProducer.addBulk(flowJobsWithQueueNames)
   }
 
@@ -50,12 +48,9 @@ export class QueueFlowManager<
   }
 
   async close() {
-    if (this.isClosed) {
-      throw new Error('QueueFlowManager is already closed')
-    }
     await Promise.all([
-      this.flowProducer.close(),
       super.close(),
+      this.flowProducer.close(),
     ])
   }
 

@@ -1,5 +1,5 @@
 import { RedisConnection, Worker, WorkerOptions, Processor, Job, WorkerListener } from 'bullmq'
-import type { DefaultJob } from './QueueManager'
+import type { DefaultJob, ConnectionStatus } from './QueueManager'
 
 export type Workers<QN extends string> = Record<QN, WorkerOptions | boolean | undefined | null>
 
@@ -12,7 +12,7 @@ export class WorkerManager<
   J extends DefaultJob<JNs>,
 > {
   protected workers = {} as Record<QNs, Worker>
-  protected isClosed = false
+  protected connectionStatus: ConnectionStatus = 'disconnected'
 
   constructor(
     workers: Workers<QNs>,
@@ -54,30 +54,29 @@ export class WorkerManager<
     }
   }
 
-  off<U extends keyof WorkerListener<any, any, string>>(event: U, listener: WorkerListener<any, any, string>[U]) {
-    for (const wName of Object.keys(this.workers) as QNs[]) {
-      const worker = this.getWorker(wName)
-      worker.off(event, listener)
-    }
-  }
-
   run() {
+    if (this.connectionStatus !== 'connected') {
+      this.connectionStatus = 'connected'
+    }
     for (const w of Object.values<Worker>(this.workers)) {
       w.run()
     }
   }
 
   async waitUntilReady() {
+    if (this.connectionStatus !== 'connected') {
+      this.connectionStatus = 'connected'
+    }
+
     await Promise.all(
       Object.values<Worker>(this.workers).map((q) => q.waitUntilReady())
     )
   }
 
   async close() {
-    if (this.isClosed) {
-      throw new Error('WorkerManager is already closed')
-    }
-    this.isClosed = true
+    this.checkConnectionStatus()
+    this.connectionStatus = 'closed'
+
     await Promise.all(
       Object.values<Worker>(this.workers).map((w) => w.close())
     )
@@ -85,5 +84,13 @@ export class WorkerManager<
 
   getWorker(name: QNs) {
     return this.workers[name]
+  }
+
+  private checkConnectionStatus() {
+    if (this.connectionStatus === 'disconnected') {
+      throw new Error('WorkerManager is disconnected')
+    } else if (this.connectionStatus === 'closed') {
+      throw new Error('WorkerManager is closed')
+    }
   }
 }

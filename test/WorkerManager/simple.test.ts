@@ -83,11 +83,7 @@ describe('Worker manager', () => {
 
     after(async () => {
 
-        try {
-            await workerManager.close()
-            await queueManager.close()
-        } catch { }
-
+        await queueManager.close()
         await connection.quit()
     })
 
@@ -129,19 +125,6 @@ describe('Worker manager', () => {
         const listenersArray = workerManager.getWorker('Queue1').listeners('active')
         equal(listenersArray.length, 1)
         equal(isListenerCalled, true)
-    })
-
-    it('listener off', async () => {
-        isListenerCalled = false
-
-        workerManager.off('active', listenerOn)
-
-        await queueManager.addJob(newJob)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-
-        const listenersArray = workerManager.getWorker('Queue1').listeners('active')
-        equal(listenersArray.length, 0)
-        equal(isListenerCalled, false)
     })
 
     it('listener once', async () => {

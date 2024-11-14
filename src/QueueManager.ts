@@ -9,6 +9,8 @@ export type DefaultJob<JN extends string> = {
   opts?: DefaultJobOptions
 }
 
+export type ConnectionStatus = 'connected' | 'disconnected' | 'closed'
+
 export type FlowJob<JN extends string> = DefaultJob<JN> & {
   children?: Array<FlowJob<JN>>
 }
@@ -21,7 +23,7 @@ export class QueueManager<
   J extends DefaultJob<JNs>,
 > {
   protected queues = {} as Record<QNs, Queue>
-  protected isClosed = false
+  protected connectionStatus: ConnectionStatus = 'disconnected'
 
   constructor(
     queues: Queues<QNs>,
@@ -64,25 +66,21 @@ export class QueueManager<
     }
   }
 
-  off<U extends keyof QueueListener<any, any, string>>(event: U, listener: QueueListener<any, any, string>[U]) {
-
-    for (const qName of Object.keys(this.queues) as QNs[]) {
-      const queue = this.getQueue(qName)
-      queue.off(event, listener)
-    }
-  }
-
   async waitUntilReady() {
+    if (this.connectionStatus != 'connected') {
+      this.connectionStatus = 'connected'
+    } else {
+      throw new Error('QueueManager is already connected')
+    }
     await Promise.all(
       Object.values<Queue>(this.queues).map((q) => q.waitUntilReady())
     )
   }
 
   async close() {
-    if (this.isClosed) {
-      throw new Error('QueueManager is already closed')
-    }
-    this.isClosed = true
+    this.checkConnectionStatus()
+    this.connectionStatus = 'closed'
+
     await Promise.all(
       Object.values<Queue>(this.queues).map((q) => { q.close() }))
 
@@ -93,18 +91,15 @@ export class QueueManager<
   }
 
   addJob(job: J) {
-    if (this.isClosed) {
-      throw new Error('QueueManager is closed')
-    }
+    this.checkConnectionStatus()
+
     const queueName = this.getQueueNameByJobName(job.name)
     return this.queues[queueName].add(job.name, job.data, job.opts)
 
   }
 
   addJobs(jobs: J[]) {
-    if (this.isClosed) {
-      throw new Error('QueueManager is closed')
-    }
+    this.checkConnectionStatus()
 
     const jobsPerQueue = {} as Record<QNs, J[] | undefined>
     for (const j of jobs) {
@@ -123,6 +118,14 @@ export class QueueManager<
 
   getQueueNameByJobName(name: JNs) {
     return this.nameToQueue[name]
+  }
+
+  private checkConnectionStatus() {
+    if (this.connectionStatus === 'disconnected') {
+      throw new Error('QueueManager is disconnected')
+    } else if (this.connectionStatus === 'closed') {
+      throw new Error('QueueManager is closed')
+    }
   }
 
 }

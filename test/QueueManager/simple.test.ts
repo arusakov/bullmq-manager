@@ -11,8 +11,6 @@ describe('Queue manager', () => {
   type QueueNames = 'Queue1' | 'Queue2'
 
   const connection = createRedis()
-  connection.on('connect', () => console.log('Connection connect'))
-  connection.on('close', () => console.log('Connection closed'))
 
   let isListenerCalled = false
   const listenerOn = (job: Job) => {
@@ -68,10 +66,7 @@ describe('Queue manager', () => {
   })
 
   after(async () => {
-    try {
-      await queueManager.close()
-    }
-    catch (err) { }
+
     await connection.quit()
   })
 
@@ -134,18 +129,6 @@ describe('Queue manager', () => {
     const listenersArray = queueManager.getQueue('Queue1').listeners('waiting')
     equal(listenersArray.length, 1)
     equal(isListenerCalled, true)
-  })
-
-  it('listener off', async () => {
-    let isListenerCalled = false
-
-    queueManager.off('waiting', listenerOn)
-
-    await queueManager.addJob(newJob)
-
-    const listenersArray = queueManager.getQueue('Queue1').listeners('waiting')
-    equal(listenersArray.length, 0)
-    equal(isListenerCalled, false)
   })
 
   it('listener once', async () => {

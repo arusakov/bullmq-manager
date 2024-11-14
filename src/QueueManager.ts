@@ -70,7 +70,7 @@ export class QueueManager<
     if (this.connectionStatus != 'connected') {
       this.connectionStatus = 'connected'
     } else {
-      throw new Error('QueueManager is already connected')
+      throw new Error(`${this.constructor.name} is already connected`)
     }
     await Promise.all(
       Object.values<Queue>(this.queues).map((q) => q.waitUntilReady())
@@ -122,9 +122,9 @@ export class QueueManager<
 
   private checkConnectionStatus() {
     if (this.connectionStatus === 'disconnected') {
-      throw new Error('QueueManager is disconnected')
+      throw new Error(`${this.constructor.name} is disconnected`)
     } else if (this.connectionStatus === 'closed') {
-      throw new Error('QueueManager is closed')
+      throw new Error(`${this.constructor.name} is closed`)
     }
   }
 

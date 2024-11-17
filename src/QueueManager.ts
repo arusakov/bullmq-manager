@@ -102,11 +102,13 @@ export class QueueManager<
   }
 
 
-  once(event: EventName, listener: QueueListener<any, any, string>[EventName]) {
+  once<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
 
-    for (const qName of Object.keys(this.queues) as QNs[]) {
-      const queue = this.getQueue(qName)
-      queue.once(event, listener)
+    for (const queue of Object.values(this.queues) as Queue[]) {
+      const wrappedListener: QueueListener<any, any, string>[U] = ((...args: Parameters<QueueListener<any, any, string>[U]>) => {
+        listener(queue, ...args)
+      }) as QueueListener<any, any, string>[U]
+      queue.once(event, wrappedListener)
     }
   }
 

@@ -4,6 +4,7 @@ import { QueueOptions, Job, Queue } from 'bullmq'
 
 import { QueueManager, DefaultJob, Queues, NameToQueue } from '../../src/QueueManager'
 import { createRedis } from '../utils'
+import { WorkerManager } from '../../src/WorkerManager'
 
 describe('Queue manager', () => {
   type JobNames = 'Job1' | 'Job2'
@@ -12,13 +13,20 @@ describe('Queue manager', () => {
   const connection = createRedis()
 
   let isListenerCalled = false
+  let isListenerCalled2 = false
   const listenerOn = (queue: Queue, job: Job) => {
     isListenerCalled = true
     console.log(`Job=${job.name} is waiting in queue=${queue.name}`)
   }
 
+  const listenerOn2 = (queue: Queue, job: Job) => {
+    isListenerCalled2 = true
+    console.log(`№2 Job=${job.name} is waiting in queue=${queue.name}`)
+  }
+
   let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
-  const newJob: DefaultJob<JobNames> = { name: 'Job1', data: {} }
+  const newJobForQueue1: DefaultJob<JobNames> = { name: 'Job1', data: {} }
+  const newJobForQueue2: DefaultJob<JobNames> = { name: 'Job2', data: {} }
 
   before(async () => {
 
@@ -79,7 +87,7 @@ describe('Queue manager', () => {
 
   it('Add job in queue', async () => {
 
-    const job = await queueManager.addJob(newJob)
+    const job = await queueManager.addJob(newJobForQueue1)
     const queue1Jobs = await queueManager.getQueue('Queue1').getWaiting()
 
     if (job) {
@@ -122,12 +130,29 @@ describe('Queue manager', () => {
 
     queueManager.on('waiting', listenerOn)
 
-    await queueManager.addJob(newJob)
+    await queueManager.addJob(newJobForQueue1)
+    await queueManager.addJob(newJobForQueue2)
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    const listenersArray1 = queueManager.getQueue('Queue1').listeners('waiting')
+    equal(listenersArray1.length, 1)
+    equal(isListenerCalled, true)
+
+    const listenersArray2 = queueManager.getQueue('Queue2').listeners('waiting')
+    equal(listenersArray2.length, 1)
+  })
+
+  it('listener on many 2 cb for event', async () => {
+
+    queueManager.on('waiting', listenerOn2)
+
+    await queueManager.addJob(newJobForQueue1)
     await new Promise(resolve => setTimeout(resolve, 100))
 
     const listenersArray = queueManager.getQueue('Queue1').listeners('waiting')
-    equal(listenersArray.length, 1)
+    equal(listenersArray.length, 2)
     equal(isListenerCalled, true)
+    equal(isListenerCalled2, true)
   })
 
   it('listener off error', () => {
@@ -135,27 +160,30 @@ describe('Queue manager', () => {
       () => queueManager.off('waiting', () => { }),
       Error,
       'Listener not found'
-    );
+    )
   })
 
   it('listener off', async () => {
     isListenerCalled = false
+    isListenerCalled2 = false
     queueManager.off('waiting', listenerOn)
 
-    await queueManager.addJob(newJob)
+    await queueManager.addJob(newJobForQueue1)
     await new Promise(resolve => setTimeout(resolve, 100))
 
     const listenersArray = queueManager.getQueue('Queue1').listeners('waiting')
-    equal(listenersArray.length, 0)
+    equal(listenersArray.length, 1)
     equal(isListenerCalled, false)
+    equal(isListenerCalled2, true)
   })
+
 
   it('listener once', async () => {
     let callCount = 0
 
-    queueManager.once('paused', () => {
+    queueManager.once('paused', (queue) => {
       callCount++
-      console.log(`Queue paused`)
+      console.log(`Queue=${queue} paused`)
     })
 
     await queueManager.getQueue('Queue1').pause()
@@ -172,7 +200,7 @@ describe('Queue manager', () => {
   it('close', async () => {
     await queueManager.close()
 
-    await rejects(async () => await queueManager.addJob(newJob), Error)
+    await rejects(async () => await queueManager.addJob(newJobForQueue1), Error)
 
   })
 })

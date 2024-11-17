@@ -18,7 +18,7 @@ describe('Worker manager', () => {
 
     const listenerOn = (worker: Worker, job: Job) => {
         isListenerCalled = true
-        console.log(`Job=${job.name} actve in worker=${worker.name}`)
+        console.log(`Job=${job.name} active in worker=${worker.name}`)
     }
 
     before(async () => {
@@ -90,6 +90,7 @@ describe('Worker manager', () => {
     afterEach(async () => {
         await queueManager.getQueue('Queue1').drain()
         await queueManager.getQueue('Queue2').drain()
+        isListenerCalled = false
     })
 
     it('setup options', () => {
@@ -117,9 +118,8 @@ describe('Worker manager', () => {
     it('listener on', async () => {
 
         workerManager.on('active', listenerOn)
-
         await queueManager.addJob(newJob)
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 2000))
 
         const listenersArray = workerManager.getWorker('Queue1').listeners('active')
         equal(listenersArray.length, 1)
@@ -135,7 +135,7 @@ describe('Worker manager', () => {
     })
 
     it('listener off', async () => {
-        isListenerCalled = false
+
         workerManager.off('active', listenerOn)
 
         queueManager.addJob(newJob)

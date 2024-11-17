@@ -31,11 +31,13 @@ export class QueueFlowManager<
 
 
   async addFlowJob(job: FlowJob<JNs>) {
+    this.checkConnectionStatus()
     const flowJobWithQueueNames = this.resolveQueueNames(job)
     return this.flowProducer.add(flowJobWithQueueNames)
   }
 
   async addFlowJobs(jobs: FlowJob<JNs>[]) {
+    this.checkConnectionStatus()
     const flowJobsWithQueueNames = jobs.map(job => this.resolveQueueNames(job))
     return this.flowProducer.addBulk(flowJobsWithQueueNames)
   }

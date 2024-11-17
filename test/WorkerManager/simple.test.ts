@@ -16,9 +16,9 @@ describe('Worker manager', () => {
     let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
     const newJob: DefaultJob<JobNames> = { name: 'Job1', data: {} }
 
-    const listenerOn = () => {
+    const listenerOn = (worker: Worker, job: Job) => {
         isListenerCalled = true
-        console.log(`Worker is active`)
+        console.log(`Job=${job.name} actve in worker=${worker.name}`)
     }
 
     before(async () => {
@@ -116,7 +116,6 @@ describe('Worker manager', () => {
 
     it('listener on', async () => {
 
-        await queueManager.getQueue('Queue1').resume()
         workerManager.on('active', listenerOn)
 
         await queueManager.addJob(newJob)
@@ -125,6 +124,26 @@ describe('Worker manager', () => {
         const listenersArray = workerManager.getWorker('Queue1').listeners('active')
         equal(listenersArray.length, 1)
         equal(isListenerCalled, true)
+    })
+
+    it('listener off error', () => {
+        throws(
+            () => workerManager.off('active', () => { }),
+            Error,
+            'Listener not found'
+        )
+    })
+
+    it('listener off', async () => {
+        isListenerCalled = false
+        workerManager.off('active', listenerOn)
+
+        queueManager.addJob(newJob)
+        await new Promise(resolve => setTimeout(resolve, 100))
+
+        const listenersArray = queueManager.getQueue('Queue1').listeners('active')
+        equal(listenersArray.length, 0)
+        equal(isListenerCalled, false)
     })
 
     it('listener once', async () => {
@@ -139,6 +158,7 @@ describe('Worker manager', () => {
         await workerManager.getWorker('Queue1').pause()
 
         equal(callCount, 1)
+        await queueManager.getQueue('Queue1').resume()
     })
 
     it('close all workers', async () => {

@@ -1,6 +1,8 @@
 import { Queue, QueueListener } from 'bullmq'
 import type { QueueOptions, RedisConnection, DefaultJobOptions } from 'bullmq'
 
+
+type AddQueueParameter<T extends any[]> = [queue: Queue<any, any, string>, ...T]
 export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
 export type NameToQueue<JN extends string, QN extends string> = Record<JN, QN>
 export type DefaultJob<JN extends string> = {
@@ -10,9 +12,22 @@ export type DefaultJob<JN extends string> = {
 }
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'closed'
+export type EventName = keyof QueueListener<any, any, string>
+export type ListenerParameters = Parameters<QueueListener<any, any, string>[EventName]>
+export type ListenerParametersWithQueue<U extends EventName> = AddQueueParameter<Parameters<QueueListener<any, any, string>[U]>>
 
 export type FlowJob<JN extends string> = DefaultJob<JN> & {
   children?: Array<FlowJob<JN>>
+}
+
+const listenerSymbol = Symbol('listenerSymbol')
+
+type FunctionWithSymbol<U extends EventName> = {
+  (...args: ListenerParametersWithQueue<U>): void
+  [listenerSymbol]?: {
+    event: U
+    listeners: Function[]
+  }
 }
 
 export type Options = {}
@@ -50,11 +65,23 @@ export class QueueManager<
     }
   }
 
-  on<U extends keyof QueueListener<any, any, string>>(event: U, listener: QueueListener<any, any, string>[U]) {
+  on<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
 
-    for (const qName of Object.keys(this.queues) as QNs[]) {
-      const queue = this.getQueue(qName)
-      queue.on(event, listener)
+    if (!listener[listenerSymbol]) {
+      listener[listenerSymbol] = {
+        event: event,
+        listeners: [],
+      }
+    }
+
+    for (const queue of Object.values(this.queues) as Queue[]) {
+
+      const wrappedListener: QueueListener<any, any, string>[U] = ((...args: Parameters<QueueListener<any, any, string>[U]>) => {
+        listener(queue, ...args)
+      }) as QueueListener<any, any, string>[U]
+
+      listener[listenerSymbol].listeners.push(wrappedListener)
+      queue.on(event, wrappedListener)
     }
   }
 

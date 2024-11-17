@@ -183,13 +183,14 @@ describe('Queue manager', () => {
 
     queueManager.once('paused', (queue) => {
       callCount++
-      console.log(`Queue=${queue} paused`)
+      console.log(`Queue=${queue.name} paused`)
     })
 
     await queueManager.getQueue('Queue1').pause()
     await queueManager.getQueue('Queue1').pause()
 
     equal(callCount, 1)
+    await queueManager.getQueue('Queue1').resume()
 
   })
 

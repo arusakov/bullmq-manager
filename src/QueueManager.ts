@@ -85,7 +85,24 @@ export class QueueManager<
     }
   }
 
-  once<U extends keyof QueueListener<any, any, string>>(event: U, listener: QueueListener<any, any, string>[U]) {
+  off<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+    if (!listener[listenerSymbol]) {
+      throw new Error('Listener not found')
+    }
+
+    const { listeners } = listener[listenerSymbol]
+
+    for (const [index, queue] of (Object.values(this.queues) as Queue[]).entries()) {
+      const wrappedListener = listeners[index]
+      if (wrappedListener) {
+        queue.off(event, wrappedListener as QueueListener<any, any, string>[U])
+      }
+    }
+    listener[listenerSymbol].listeners = []
+  }
+
+
+  once(event: EventName, listener: QueueListener<any, any, string>[EventName]) {
 
     for (const qName of Object.keys(this.queues) as QNs[]) {
       const queue = this.getQueue(qName)

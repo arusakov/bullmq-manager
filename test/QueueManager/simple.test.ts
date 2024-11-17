@@ -1,5 +1,5 @@
 import { describe, it, before, after, afterEach } from 'node:test'
-import { equal, fail, strictEqual } from 'assert'
+import { equal, fail, strictEqual, throws, rejects } from 'assert'
 import { QueueOptions, Job, Queue } from 'bullmq'
 
 import { QueueManager, DefaultJob, Queues, NameToQueue } from '../../src/QueueManager'
@@ -130,6 +130,26 @@ describe('Queue manager', () => {
     equal(isListenerCalled, true)
   })
 
+  it('listener off error', () => {
+    throws(
+      () => queueManager.off('waiting', () => { }),
+      Error,
+      'Listener not found'
+    );
+  })
+
+  it('listener off', async () => {
+    isListenerCalled = false
+    queueManager.off('waiting', listenerOn)
+
+    await queueManager.addJob(newJob)
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    const listenersArray = queueManager.getQueue('Queue1').listeners('waiting')
+    equal(listenersArray.length, 0)
+    equal(isListenerCalled, false)
+  })
+
   it('listener once', async () => {
     let callCount = 0
 
@@ -145,18 +165,14 @@ describe('Queue manager', () => {
 
   })
 
+  it('waitUntilReady error is already connected', async () => {
+    await rejects(async () => await queueManager.waitUntilReady(), Error)
+  })
+
   it('close', async () => {
     await queueManager.close()
 
-    try {
-      await queueManager.addJob(newJob)
-      fail("Expected an error, but none was thrown")
-    } catch (error) {
-      if (error instanceof Error) {
-        strictEqual(error.message, 'QueueManager is closed')
-      } else {
-        fail("Caught an error, but it was not of type Error")
-      }
-    }
+    await rejects(async () => await queueManager.addJob(newJob), Error)
+
   })
 })

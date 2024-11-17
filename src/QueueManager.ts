@@ -3,6 +3,9 @@ import type { QueueOptions, RedisConnection, DefaultJobOptions } from 'bullmq'
 
 
 type AddQueueParameter<T extends any[]> = [queue: Queue<any, any, string>, ...T]
+type QueueEventName = keyof QueueListener<any, any, string>
+type ListenerParametersWithQueue<U extends QueueEventName> = AddQueueParameter<Parameters<QueueListener<any, any, string>[U]>>
+
 export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
 export type NameToQueue<JN extends string, QN extends string> = Record<JN, QN>
 export type DefaultJob<JN extends string> = {
@@ -12,17 +15,13 @@ export type DefaultJob<JN extends string> = {
 }
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'closed'
-export type EventName = keyof QueueListener<any, any, string>
-export type ListenerParameters = Parameters<QueueListener<any, any, string>[EventName]>
-export type ListenerParametersWithQueue<U extends EventName> = AddQueueParameter<Parameters<QueueListener<any, any, string>[U]>>
-
 export type FlowJob<JN extends string> = DefaultJob<JN> & {
   children?: Array<FlowJob<JN>>
 }
 
 const listenerSymbol = Symbol('listenerSymbol')
 
-type FunctionWithSymbol<U extends EventName> = {
+type QueueFunctionWithSymbol<U extends QueueEventName> = {
   (...args: ListenerParametersWithQueue<U>): void
   [listenerSymbol]?: {
     event: U
@@ -65,7 +64,7 @@ export class QueueManager<
     }
   }
 
-  on<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+  on<U extends QueueEventName>(event: U, listener: QueueFunctionWithSymbol<U>) {
 
     if (!listener[listenerSymbol]) {
       listener[listenerSymbol] = {
@@ -85,7 +84,7 @@ export class QueueManager<
     }
   }
 
-  off<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+  off<U extends QueueEventName>(event: U, listener: QueueFunctionWithSymbol<U>) {
     if (!listener[listenerSymbol]) {
       throw new Error('Listener not found')
     }
@@ -102,7 +101,7 @@ export class QueueManager<
   }
 
 
-  once<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+  once<U extends QueueEventName>(event: U, listener: QueueFunctionWithSymbol<U>) {
 
     for (const queue of Object.values(this.queues) as Queue[]) {
       const wrappedListener: QueueListener<any, any, string>[U] = ((...args: Parameters<QueueListener<any, any, string>[U]>) => {

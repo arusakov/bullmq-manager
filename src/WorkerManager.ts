@@ -6,11 +6,11 @@ export type WorkerManagerOptions = {}
 
 const listenerSymbol = Symbol('listenerSymbol')
 
-export type EventName = keyof WorkerListener<any, any, string>
 type AddWorkerParameter<T extends any[]> = [worker: Worker<any, any, string>, ...T]
-export type ListenerParametersWithWorker<U extends EventName> = AddWorkerParameter<Parameters<WorkerListener<any, any, string>[U]>>
+type WorkerEventName = keyof WorkerListener<any, any, string>
+type ListenerParametersWithWorker<U extends WorkerEventName> = AddWorkerParameter<Parameters<WorkerListener<any, any, string>[U]>>
 
-type FunctionWithSymbol<U extends EventName> = {
+type WorkerFunctionWithSymbol<U extends WorkerEventName> = {
   (...args: ListenerParametersWithWorker<U>): void
   [listenerSymbol]?: {
     event: U
@@ -52,7 +52,7 @@ export class WorkerManager<
     }
   }
 
-  on<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+  on<U extends WorkerEventName>(event: U, listener: WorkerFunctionWithSymbol<U>) {
     if (!listener[listenerSymbol]) {
       listener[listenerSymbol] = {
         event,
@@ -70,7 +70,7 @@ export class WorkerManager<
     }
   }
 
-  off<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+  off<U extends WorkerEventName>(event: U, listener: WorkerFunctionWithSymbol<U>) {
     if (!listener[listenerSymbol]) {
       throw new Error('Listener not found')
     }
@@ -87,7 +87,7 @@ export class WorkerManager<
   }
 
 
-  once<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+  once<U extends WorkerEventName>(event: U, listener: WorkerFunctionWithSymbol<U>) {
     for (const worker of Object.values(this.workers) as Worker[]) {
       const wrappedListener: WorkerListener<any, any, string>[U] = ((...args: Parameters<WorkerListener<any, any, string>[U]>) => {
         listener(worker, ...args);
@@ -100,6 +100,8 @@ export class WorkerManager<
   run() {
     if (this.connectionStatus !== 'connected') {
       this.connectionStatus = 'connected'
+    } else {
+      throw new Error(`${this.constructor.name} is already running`)
     }
     for (const w of Object.values<Worker>(this.workers)) {
       w.run()
@@ -109,6 +111,8 @@ export class WorkerManager<
   async waitUntilReady() {
     if (this.connectionStatus !== 'connected') {
       this.connectionStatus = 'connected'
+    } else {
+      throw new Error(`${this.constructor.name} is already connected`)
     }
 
     await Promise.all(

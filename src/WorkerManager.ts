@@ -1,10 +1,22 @@
-import { RedisConnection, Worker, WorkerOptions, Processor, Job, WorkerListener } from 'bullmq'
+import { RedisConnection, Worker, WorkerOptions, Job, WorkerListener } from 'bullmq'
 import type { DefaultJob, ConnectionStatus } from './QueueManager'
 
 export type Workers<QN extends string> = Record<QN, WorkerOptions | boolean | undefined | null>
-
-
 export type WorkerManagerOptions = {}
+
+const listenerSymbol = Symbol('listenerSymbol')
+
+export type EventName = keyof WorkerListener<any, any, string>
+type AddWorkerParameter<T extends any[]> = [worker: Worker<any, any, string>, ...T]
+export type ListenerParametersWithWorker<U extends EventName> = AddWorkerParameter<Parameters<WorkerListener<any, any, string>[U]>>
+
+type FunctionWithSymbol<U extends EventName> = {
+  (...args: ListenerParametersWithWorker<U>): void
+  [listenerSymbol]?: {
+    event: U
+    listeners: Function[]
+  }
+}
 
 export class WorkerManager<
   JNs extends string,
@@ -40,17 +52,48 @@ export class WorkerManager<
     }
   }
 
-  on<U extends keyof WorkerListener<any, any, string>>(event: U, listener: WorkerListener<any, any, string>[U]) {
-    for (const wName of Object.keys(this.workers) as QNs[]) {
-      const worker = this.getWorker(wName)
-      worker.on(event, listener)
+  on<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+    if (!listener[listenerSymbol]) {
+      listener[listenerSymbol] = {
+        event,
+        listeners: [],
+      }
+    }
+
+    for (const worker of Object.values(this.workers) as Worker[]) {
+      const wrappedListener: WorkerListener<any, any, string>[U] = ((...args: Parameters<WorkerListener<any, any, string>[U]>) => {
+        listener(worker, ...args)
+      }) as WorkerListener<any, any, string>[U]
+
+      listener[listenerSymbol].listeners.push(wrappedListener)
+      worker.on(event, wrappedListener)
     }
   }
 
-  once<U extends keyof WorkerListener<any, any, string>>(event: U, listener: WorkerListener<any, any, string>[U]) {
-    for (const wName of Object.keys(this.workers) as QNs[]) {
-      const worker = this.getWorker(wName)
-      worker.once(event, listener)
+  off<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+    if (!listener[listenerSymbol]) {
+      throw new Error('Listener not found')
+    }
+
+    const { listeners } = listener[listenerSymbol]
+
+    for (const [index, worker] of (Object.values(this.workers) as Worker[]).entries()) {
+      const wrappedListener = listeners[index]
+      if (wrappedListener) {
+        worker.off(event, wrappedListener as WorkerListener<any, any, string>[U])
+      }
+    }
+    listener[listenerSymbol].listeners = []
+  }
+
+
+  once<U extends EventName>(event: U, listener: FunctionWithSymbol<U>) {
+    for (const worker of Object.values(this.workers) as Worker[]) {
+      const wrappedListener: WorkerListener<any, any, string>[U] = ((...args: Parameters<WorkerListener<any, any, string>[U]>) => {
+        listener(worker, ...args);
+      }) as WorkerListener<any, any, string>[U];
+
+      worker.once(event, wrappedListener)
     }
   }
 

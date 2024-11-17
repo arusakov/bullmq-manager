@@ -1,9 +1,8 @@
 import { describe, it, before, after, afterEach } from 'node:test'
 import { equal, fail, strictEqual } from 'assert'
-import { QueueOptions, Job } from 'bullmq'
+import { QueueOptions, Job, Queue } from 'bullmq'
 
-import { QueueManager, DefaultJob, Queues, NameToQueue, Options } from '../../src/QueueManager'
-
+import { QueueManager, DefaultJob, Queues, NameToQueue } from '../../src/QueueManager'
 import { createRedis } from '../utils'
 
 describe('Queue manager', () => {
@@ -13,9 +12,9 @@ describe('Queue manager', () => {
   const connection = createRedis()
 
   let isListenerCalled = false
-  const listenerOn = (job: Job) => {
+  const listenerOn = (queue: Queue, job: Job) => {
     isListenerCalled = true
-    console.log(`Job.id=${job.id} is waiting`)
+    console.log(`Job=${job.name} is waiting in queue=${queue.name}`)
   }
 
   let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
@@ -94,7 +93,7 @@ describe('Queue manager', () => {
   it('Add jobs in queue', async () => {
     const newJobs: DefaultJob<JobNames>[] = [{ name: 'Job1', data: {} }, { name: 'Job1', data: {} }, { name: 'Job2', data: {} }]
 
-    queueManager.addJobs(newJobs)
+    await queueManager.addJobs(newJobs)
 
     const queue1Jobs = await queueManager.getQueue('Queue1').getWaiting()
     const queue2Jobs = await queueManager.getQueue('Queue2').getWaiting()
@@ -135,7 +134,7 @@ describe('Queue manager', () => {
     let callCount = 0
 
     queueManager.once('paused', () => {
-      callCount++;
+      callCount++
       console.log(`Queue paused`)
     })
 
@@ -154,9 +153,9 @@ describe('Queue manager', () => {
       fail("Expected an error, but none was thrown")
     } catch (error) {
       if (error instanceof Error) {
-        strictEqual(error.message, 'QueueManager is closed');
+        strictEqual(error.message, 'QueueManager is closed')
       } else {
-        fail("Caught an error, but it was not of type Error");
+        fail("Caught an error, but it was not of type Error")
       }
     }
   })

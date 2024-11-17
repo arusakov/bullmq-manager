@@ -164,7 +164,7 @@ export class QueueManager<
     return this.nameToQueue[name]
   }
 
-  private checkConnectionStatus() {
+  protected checkConnectionStatus() {
     if (this.connectionStatus === 'disconnected') {
       throw new Error(`${this.constructor.name} is disconnected`)
     } else if (this.connectionStatus === 'closed') {

@@ -101,7 +101,8 @@ export class WorkerManager<
     if (this.connectionStatus !== 'connected') {
       this.connectionStatus = 'connected'
     } else {
-      throw new Error(`${this.constructor.name} is already running`)
+      console.log(`${this.constructor.name} is already running`)
+      return
     }
     for (const w of Object.values<Worker>(this.workers)) {
       w.run()
@@ -112,7 +113,8 @@ export class WorkerManager<
     if (this.connectionStatus !== 'connected') {
       this.connectionStatus = 'connected'
     } else {
-      throw new Error(`${this.constructor.name} is already connected`)
+      console.log(`${this.constructor.name} is already running`)
+      return
     }
 
     await Promise.all(

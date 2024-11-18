@@ -115,7 +115,8 @@ export class QueueManager<
     if (this.connectionStatus != 'connected') {
       this.connectionStatus = 'connected'
     } else {
-      throw new Error(`${this.constructor.name} is already connected`)
+      console.log(`${this.constructor.name} is already connected`)
+      return
     }
     await Promise.all(
       Object.values<Queue>(this.queues).map((q) => q.waitUntilReady())

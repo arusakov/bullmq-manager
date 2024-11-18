@@ -1,5 +1,5 @@
 import { describe, it, before, after, afterEach, beforeEach } from 'node:test'
-import { equal, throws } from 'assert'
+import { equal, throws, rejects } from 'assert'
 import { WorkerOptions, Job, QueueOptions, Worker } from 'bullmq'
 import { WorkerManager, WorkerManagerOptions, Workers } from '../../src/WorkerManager'
 import { DefaultJob, NameToQueue, Queues, QueueManager } from '../../src/QueueManager'
@@ -78,7 +78,6 @@ describe('Worker manager', () => {
             nameToQueue
         )
         await queueManager.waitUntilReady()
-        await workerManager.waitUntilReady()
     })
 
     after(async () => {
@@ -91,6 +90,11 @@ describe('Worker manager', () => {
         await queueManager.getQueue('Queue1').drain()
         await queueManager.getQueue('Queue2').drain()
         isListenerCalled = false
+    })
+
+    it('waitUntilReady', async () => {
+        await workerManager.waitUntilReady()
+        await workerManager.waitUntilReady()
     })
 
     it('setup options', () => {
@@ -107,6 +111,8 @@ describe('Worker manager', () => {
     })
 
     it('run all workers', async () => {
+
+        workerManager.run()
 
         const isRunning1 = workerManager.getWorker('Queue1').isRunning() === true
         equal(isRunning1, true)
@@ -162,6 +168,7 @@ describe('Worker manager', () => {
     })
 
     it('close all workers', async () => {
+        workerManager.on('closed', (worker) => console.log(`worker=${worker.name} closed`))
         await workerManager.close()
 
         const isClosed1 = workerManager.getWorker('Queue1').isRunning() === false
@@ -169,5 +176,13 @@ describe('Worker manager', () => {
 
         const isClosed2 = workerManager.getWorker('Queue2').isRunning() === false
         equal(isClosed2, true)
+    })
+
+    it('close checkConnectionStatus error', () => {
+        rejects(
+            async () => await workerManager.close(),
+            Error,
+            'WorkerManager is closed'
+        )
     })
 })

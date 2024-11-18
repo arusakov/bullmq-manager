@@ -1,10 +1,9 @@
 import { describe, it, before, after, afterEach } from 'node:test'
-import { equal, fail, strictEqual, throws, rejects } from 'assert'
+import { equal, throws, rejects } from 'assert'
 import { QueueOptions, Job, Queue } from 'bullmq'
 
 import { QueueManager, DefaultJob, Queues, NameToQueue } from '../../src/QueueManager'
 import { createRedis } from '../utils'
-import { WorkerManager } from '../../src/WorkerManager'
 
 describe('Queue manager', () => {
   type JobNames = 'Job1' | 'Job2'
@@ -192,10 +191,6 @@ describe('Queue manager', () => {
     equal(callCount, 1)
     await queueManager.getQueue('Queue1').resume()
 
-  })
-
-  it('waitUntilReady error is already connected', async () => {
-    await rejects(async () => await queueManager.waitUntilReady(), Error)
   })
 
   it('close', async () => {

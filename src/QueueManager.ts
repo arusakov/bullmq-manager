@@ -1,10 +1,11 @@
-import { Queue, QueueListener } from 'bullmq'
+import { Queue, QueueListener, Job } from 'bullmq'
 import type { QueueOptions, RedisConnection, DefaultJobOptions } from 'bullmq'
 
 
 type AddQueueParameter<T extends any[]> = [queue: Queue<any, any, string>, ...T]
-type QueueEventName = keyof QueueListener<any, any, string>
-type ListenerParametersWithQueue<U extends QueueEventName> = AddQueueParameter<Parameters<QueueListener<any, any, string>[U]>>
+type QueueEventName = keyof QueueListener
+
+type ListenerParametersWithQueue<U extends QueueEventName> = AddQueueParameter<Parameters<QueueListener[U]>>
 
 export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
 export type NameToQueue<JN extends string, QN extends string> = Record<JN, QN>
@@ -75,9 +76,9 @@ export class QueueManager<
 
     for (const queue of Object.values(this.queues) as Queue[]) {
 
-      const wrappedListener: QueueListener<any, any, string>[U] = ((...args: Parameters<QueueListener<any, any, string>[U]>) => {
+      const wrappedListener: QueueListener[U] = ((...args: Parameters<QueueListener[U]>) => {
         listener(queue, ...args)
-      }) as QueueListener<any, any, string>[U]
+      }) as QueueListener[U]
 
       listener[listenerSymbol].listeners.push(wrappedListener)
       queue.on(event, wrappedListener)
@@ -94,7 +95,7 @@ export class QueueManager<
     for (const [index, queue] of (Object.values(this.queues) as Queue[]).entries()) {
       const wrappedListener = listeners[index]
       if (wrappedListener) {
-        queue.off(event, wrappedListener as QueueListener<any, any, string>[U])
+        queue.off(event, wrappedListener as QueueListener[U])
       }
     }
     listener[listenerSymbol].listeners = []
@@ -104,9 +105,9 @@ export class QueueManager<
   once<U extends QueueEventName>(event: U, listener: QueueFunctionWithSymbol<U>) {
 
     for (const queue of Object.values(this.queues) as Queue[]) {
-      const wrappedListener: QueueListener<any, any, string>[U] = ((...args: Parameters<QueueListener<any, any, string>[U]>) => {
+      const wrappedListener: QueueListener[U] = ((...args: Parameters<QueueListener[U]>) => {
         listener(queue, ...args)
-      }) as QueueListener<any, any, string>[U]
+      }) as QueueListener[U]
       queue.once(event, wrappedListener)
     }
   }

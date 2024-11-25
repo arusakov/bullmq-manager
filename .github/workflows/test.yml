@@ -18,12 +18,10 @@ jobs:
             coverage: false
 
     runs-on: ubuntu-latest
-    container: node:20-alpine
-
+    container: node:22-alpine
     services:
       redis:
         image: ${{ matrix.redis.image }}
-
     steps:
       - uses: actions/checkout@v4
 

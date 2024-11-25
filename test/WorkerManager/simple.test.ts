@@ -1,5 +1,5 @@
 import { describe, it, before, after, afterEach, beforeEach } from 'node:test'
-import { equal, throws } from 'assert'
+import { equal, throws, rejects } from 'assert'
 import { WorkerOptions, Job, QueueOptions, Worker } from 'bullmq'
 import { WorkerManager, WorkerManagerOptions, Workers } from '../../src/WorkerManager'
 import { DefaultJob, NameToQueue, Queues, QueueManager } from '../../src/QueueManager'
@@ -16,9 +16,9 @@ describe('Worker manager', () => {
     let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
     const newJob: DefaultJob<JobNames> = { name: 'Job1', data: {} }
 
-    const listenerOn = () => {
+    const listenerOn = (worker: Worker, job: Job) => {
         isListenerCalled = true
-        console.log(`Worker is active`)
+        console.log(`Job=${job.name} active in worker=${worker.name}`)
     }
 
     before(async () => {
@@ -78,7 +78,6 @@ describe('Worker manager', () => {
             nameToQueue
         )
         await queueManager.waitUntilReady()
-        await workerManager.waitUntilReady()
     })
 
     after(async () => {
@@ -90,6 +89,12 @@ describe('Worker manager', () => {
     afterEach(async () => {
         await queueManager.getQueue('Queue1').drain()
         await queueManager.getQueue('Queue2').drain()
+        isListenerCalled = false
+    })
+
+    it('waitUntilReady', async () => {
+        await workerManager.waitUntilReady()
+        await workerManager.waitUntilReady()
     })
 
     it('setup options', () => {
@@ -107,6 +112,8 @@ describe('Worker manager', () => {
 
     it('run all workers', async () => {
 
+        workerManager.run()
+
         const isRunning1 = workerManager.getWorker('Queue1').isRunning() === true
         equal(isRunning1, true)
 
@@ -116,15 +123,33 @@ describe('Worker manager', () => {
 
     it('listener on', async () => {
 
-        await queueManager.getQueue('Queue1').resume()
         workerManager.on('active', listenerOn)
-
         await queueManager.addJob(newJob)
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 2000))
 
         const listenersArray = workerManager.getWorker('Queue1').listeners('active')
         equal(listenersArray.length, 1)
         equal(isListenerCalled, true)
+    })
+
+    it('listener off error', () => {
+        throws(
+            () => workerManager.off('active', () => { }),
+            Error,
+            'Listener not found'
+        )
+    })
+
+    it('listener off', async () => {
+
+        workerManager.off('active', listenerOn)
+
+        queueManager.addJob(newJob)
+        await new Promise(resolve => setTimeout(resolve, 100))
+
+        const listenersArray = queueManager.getQueue('Queue1').listeners('active')
+        equal(listenersArray.length, 0)
+        equal(isListenerCalled, false)
     })
 
     it('listener once', async () => {
@@ -139,9 +164,11 @@ describe('Worker manager', () => {
         await workerManager.getWorker('Queue1').pause()
 
         equal(callCount, 1)
+        await queueManager.getQueue('Queue1').resume()
     })
 
     it('close all workers', async () => {
+        workerManager.on('closed', (worker) => console.log(`worker=${worker.name} closed`))
         await workerManager.close()
 
         const isClosed1 = workerManager.getWorker('Queue1').isRunning() === false
@@ -149,5 +176,13 @@ describe('Worker manager', () => {
 
         const isClosed2 = workerManager.getWorker('Queue2').isRunning() === false
         equal(isClosed2, true)
+    })
+
+    it('close checkConnectionStatus error', () => {
+        rejects(
+            async () => await workerManager.close(),
+            Error,
+            'WorkerManager is closed'
+        )
     })
 })

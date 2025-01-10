@@ -23,12 +23,12 @@ export class WorkerManager<
   QNs extends string,
   J extends DefaultJob<JNs>,
 > {
-  protected workers = {} as Record<QNs, Worker>
+  protected workers = {} as Record<QNs, Worker<any, any, JNs>>
   protected connectionStatus: ConnectionStatus = 'disconnected'
 
   constructor(
     workers: Workers<QNs>,
-    processor: (job: Job) => Promise<unknown>,
+    processor: (job: Job<any, any, JNs>) => Promise<unknown>,
     workerOptions: WorkerOptions,
     protected options: WorkerManagerOptions,
     Connection?: typeof RedisConnection,
@@ -104,7 +104,7 @@ export class WorkerManager<
       console.log(`${this.constructor.name} is already running`)
       return
     }
-    for (const w of Object.values<Worker>(this.workers)) {
+    for (const w of Object.values<Worker<any, any, JNs>>(this.workers)) {
       w.run()
     }
   }
@@ -118,7 +118,7 @@ export class WorkerManager<
     }
 
     await Promise.all(
-      Object.values<Worker>(this.workers).map((q) => q.waitUntilReady())
+      Object.values<Worker<any, any, JNs>>(this.workers).map((q) => q.waitUntilReady())
     )
   }
 
@@ -127,7 +127,7 @@ export class WorkerManager<
     this.connectionStatus = 'closed'
 
     await Promise.all(
-      Object.values<Worker>(this.workers).map((w) => w.close())
+      Object.values<Worker<any, any, JNs>>(this.workers).map((w) => w.close())
     )
   }
 

@@ -10,11 +10,15 @@ describe('Worker manager', () => {
     type JobNames = 'Job1' | 'Job2'
     type QueueNames = 'Queue1' | 'Queue2'
     let isListenerCalled = false
-
+    type JobsType = {
+        name: JobNames,
+        data: any
+    }
     const connection = createRedis()
     let workerManager: WorkerManager<JobNames, QueueNames, DefaultJob<JobNames>>
     let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
     const newJob: DefaultJob<JobNames> = { name: 'Job1', data: {} }
+    type Jobs = JobsType & Pick<Job, 'id' | 'queueName'>
 
     const listenerOn = (worker: Worker, job: Job) => {
         isListenerCalled = true
@@ -31,7 +35,7 @@ describe('Worker manager', () => {
             Queue2: true,
         }
 
-        const processor = async (job: Job) => { console.log(`Processing ${job.name}`) }
+        const processor = async (job: Jobs) => { console.log(`Processing ${job.name}`) }
 
         const workerOptions: WorkerOptions = {
             connection: connection,

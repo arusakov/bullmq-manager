@@ -7,7 +7,8 @@ type QueueEventName = keyof QueueListener
 
 type ListenerParametersWithQueue<U extends QueueEventName> = AddQueueParameter<Parameters<QueueListener[U]>>
 
-export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
+export type QueueConfig = Partial<QueueOptions> | boolean | undefined | null
+export type Queues<QN extends string> = Record<QN, QueueConfig>
 export type NameToQueue<JN extends string, QN extends string> = Record<JN, QN>
 export type DefaultJob<JN extends string> = {
   name: JN
@@ -41,26 +42,26 @@ export class QueueManager<
   protected connectionStatus: ConnectionStatus = 'disconnected'
 
   constructor(
-    queues: Queues<QNs>,
+    queuesConfig: Queues<QNs>,
     queueOptions: QueueOptions,
     protected nameToQueue: NameToQueue<JNs, QNs>,
     protected options: Options = {},
     Connection?: typeof RedisConnection,
   ) {
-    const qIterator = Object.entries<QueueOptions | boolean | undefined | null>(queues)
+    const configIterator = Object.entries<QueueConfig>(queuesConfig)
 
-    for (const [qName, qOptions] of qIterator) {
-      if (qOptions) {
+    for (const [name, queueConfig] of configIterator) {
+      if (queueConfig) {
         const queue = new Queue(
-          qName,
+          name,
           {
             ...queueOptions,
-            ...(qOptions === true ? undefined : qOptions)
+            ...(queueConfig === true ? undefined : queueConfig)
           },
           Connection
         )
 
-        this.queues[qName as QNs] = queue
+        this.queues[name as QNs] = queue
       }
     }
   }

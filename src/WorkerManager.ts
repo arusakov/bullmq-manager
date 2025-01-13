@@ -1,7 +1,8 @@
 import { RedisConnection, Worker, WorkerOptions, Job, WorkerListener } from 'bullmq'
 import type { DefaultJob, ConnectionStatus } from './QueueManager'
 
-export type Workers<QN extends string> = Record<QN, WorkerOptions | boolean | undefined | null>
+export type WorkerConfig = Partial<WorkerOptions> | boolean | undefined | null
+export type Workers<QN extends string> = Record<QN, WorkerConfig>
 export type WorkerManagerOptions = {}
 
 const listenerSymbol = Symbol('listenerSymbol')
@@ -27,27 +28,27 @@ export class WorkerManager<
   protected connectionStatus: ConnectionStatus = 'disconnected'
 
   constructor(
-    workers: Workers<QNs>,
+    workersConfig: Workers<QNs>,
     processor: (job: Job<any, any, JNs>) => Promise<unknown>,
     workerOptions: WorkerOptions,
     protected options: WorkerManagerOptions,
     Connection?: typeof RedisConnection,
   ) {
-    const wIterator = Object.entries<Partial<WorkerOptions> | boolean | undefined | null>(workers)
+    const configIterator = Object.entries<WorkerConfig>(workersConfig)
 
-    for (const [wName, wOptions] of wIterator) {
-      if (wOptions) {
+    for (const [name, workerConfig] of configIterator) {
+      if (workerConfig) {
         const worker = new Worker(
-          wName,
+          name,
           processor,
           {
             ...workerOptions,
-            ...(wOptions === true ? undefined : wOptions),
+            ...(workerConfig === true ? undefined : workerConfig),
           },
           Connection
         )
 
-        this.workers[wName as QNs] = worker
+        this.workers[name as QNs] = worker
       }
     }
   }

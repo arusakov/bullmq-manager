@@ -7,13 +7,24 @@ import { DefaultJob, NameToQueue, Queues, QueueManager } from '../../src/QueueMa
 import { createRedis } from '../utils'
 
 describe('Worker manager', () => {
-    type JobNames = 'Job1' | 'Job2'
+    type JobNames1 = 'Job1'
+    type JobNames2 = 'Job2'
+    type JobNames = JobNames1 | JobNames2
     type QueueNames = 'Queue1' | 'Queue2'
     let isListenerCalled = false
-    type JobsType = {
-        name: JobNames,
-        data: any
+    type JobsType1 = {
+        name: JobNames1,
+        data: string
     }
+
+    type JobsType2 = {
+        name: JobNames2,
+        data: boolean
+    }
+
+    type JobsType = JobsType1 | JobsType2
+
+
     const connection = createRedis()
     let workerManager: WorkerManager<JobNames, QueueNames, DefaultJob<JobNames>>
     let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>

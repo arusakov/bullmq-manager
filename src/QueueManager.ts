@@ -145,7 +145,7 @@ export class QueueManager<
 
   }
 
-  addJobs(jobs: J[]) {
+  async addJobs(jobs: J[]) {
     this.checkConnectionStatus()
 
     const jobsPerQueue = {} as Record<QNs, J[] | undefined>
@@ -157,10 +157,13 @@ export class QueueManager<
       }
       jobs.push(j)
     }
-    return Promise.all(
+
+    const added = await Promise.all(
       Object.entries<J[] | undefined>(jobsPerQueue)
         .map(([queueName, jobs]) => this.queues[queueName as QNs].addBulk(jobs as J[]))
     )
+
+    return added.flat()
   }
 
   getQueueNameByJobName(name: JNs) {

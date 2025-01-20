@@ -4,16 +4,18 @@ import type { DefaultJob, NameToQueue, Options, Queues } from './QueueManager'
 
 import { QueueManager, FlowJob } from './QueueManager'
 
-export type FlowJobReal<JN extends string> = FlowJob<JN> & {
+export type FlowJobReal<JN extends string, JD extends object> = FlowJob<JN, JD> & {
   queueName: string
-  children?: Array<FlowJobReal<JN>>
+  children?: Array<FlowJobReal<JN, JD>>
 }
+
 
 export class QueueFlowManager<
   JNs extends string,
   QNs extends string,
-  J extends DefaultJob<JNs>,
-> extends QueueManager<JNs, QNs, J> {
+  JD extends object,
+  J extends DefaultJob<JNs, JD>,
+> extends QueueManager<JNs, QNs, JD, J> {
 
   protected flowProducer: FlowProducer
 
@@ -30,13 +32,13 @@ export class QueueFlowManager<
   }
 
 
-  async addFlowJob(job: FlowJob<JNs>) {
+  async addFlowJob(job: FlowJob<JNs, JD>) {
     this.checkConnectionStatus()
     const flowJobWithQueueNames = this.resolveQueueNames(job)
     return this.flowProducer.add(flowJobWithQueueNames)
   }
 
-  async addFlowJobs(jobs: FlowJob<JNs>[]) {
+  async addFlowJobs(jobs: FlowJob<JNs, JD>[]) {
     this.checkConnectionStatus()
     const flowJobsWithQueueNames = jobs.map(job => this.resolveQueueNames(job))
     return this.flowProducer.addBulk(flowJobsWithQueueNames)
@@ -56,9 +58,9 @@ export class QueueFlowManager<
     ])
   }
 
-  private resolveQueueNames(job: FlowJob<JNs>): FlowJobReal<JNs> {
+  private resolveQueueNames(job: FlowJob<JNs, JD>): FlowJobReal<JNs, JD> {
     const queueName = this.getQueueNameByJobName(job.name)
-    const resolvedJob: FlowJobReal<JNs> = {
+    const resolvedJob: FlowJobReal<JNs, JD> = {
       ...job,
       queueName,
       children: job.children?.map(child => this.resolveQueueNames(child))

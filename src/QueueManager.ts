@@ -9,15 +9,15 @@ type ListenerParametersWithQueue<U extends QueueEventName> = AddQueueParameter<P
 
 export type Queues<QN extends string> = Record<QN, QueueOptions | boolean | undefined | null>
 export type NameToQueue<JN extends string, QN extends string> = Record<JN, QN>
-export type DefaultJob<JN extends string> = {
+export type DefaultJob<JN extends string, JD extends object> = {
   name: JN
-  data: unknown
+  data: JD
   opts?: DefaultJobOptions
 }
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'closed'
-export type FlowJob<JN extends string> = DefaultJob<JN> & {
-  children?: Array<FlowJob<JN>>
+export type FlowJob<JN extends string, JD extends object> = DefaultJob<JN, JD> & {
+  children?: Array<FlowJob<JN, JD>>
 }
 
 const listenerSymbol = Symbol('listenerSymbol')
@@ -35,7 +35,8 @@ export type Options = {}
 export class QueueManager<
   JNs extends string,
   QNs extends string,
-  J extends DefaultJob<JNs>,
+  JD extends object,
+  J extends DefaultJob<JNs, JD>,
 > {
   protected queues = {} as Record<QNs, Queue>
   protected connectionStatus: ConnectionStatus = 'disconnected'

@@ -1,5 +1,5 @@
 import { RedisConnection, Worker, WorkerOptions, Job, WorkerListener } from 'bullmq'
-import type { DefaultJob, ConnectionStatus } from './QueueManager'
+import type { ConnectionStatus } from './QueueManager'
 
 export type Workers<QN extends string> = Record<QN, WorkerOptions | boolean | undefined | null>
 export type WorkerManagerOptions = {}
@@ -21,14 +21,14 @@ type WorkerFunctionWithSymbol<U extends WorkerEventName> = {
 export class WorkerManager<
   JNs extends string,
   QNs extends string,
-  J extends DefaultJob<JNs>,
+  JD extends object,
 > {
   protected workers = {} as Record<QNs, Worker<any, any, JNs>>
   protected connectionStatus: ConnectionStatus = 'disconnected'
 
   constructor(
     workers: Workers<QNs>,
-    processor: (job: Job<any, any, JNs>) => Promise<unknown>,
+    processor: (job: Job<JD, any, JNs>) => Promise<unknown>,
     workerOptions: WorkerOptions,
     protected options: WorkerManagerOptions,
     Connection?: typeof RedisConnection,

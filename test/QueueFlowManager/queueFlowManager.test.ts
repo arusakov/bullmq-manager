@@ -10,13 +10,14 @@ import { createRedis } from '../utils'
 describe('Queue Flow manager', () => {
     type JobNames = 'Job1' | 'Job2'
     type QueueNames = 'Queue1' | 'Queue2'
+    type JobData = { price: number }
 
     const connection = createRedis()
 
-    let flowQueueManager: QueueFlowManager<JobNames, QueueNames, DefaultJob<JobNames>>
-    const childrenJob: FlowJob<JobNames> = { name: 'Job2', data: {} }
-    const newJob: FlowJob<JobNames> = { name: 'Job1', data: {}, children: [childrenJob] }
-    const newJobs: FlowJob<JobNames>[] = [newJob, newJob]
+    let flowQueueManager: QueueFlowManager<JobNames, QueueNames, JobData, DefaultJob<JobNames, JobData>>
+    const childrenJob: FlowJob<JobNames, JobData> = { name: 'Job2', data: { price: 100 } }
+    const newJob: FlowJob<JobNames, JobData> = { name: 'Job1', data: { price: 200 }, children: [childrenJob] }
+    const newJobs: FlowJob<JobNames, JobData>[] = [newJob, newJob]
 
     async function drainQueue(queue: Queue) {
         await queue.drain()
@@ -59,7 +60,7 @@ describe('Queue Flow manager', () => {
 
         const options: Options = {}
 
-        flowQueueManager = new QueueFlowManager<JobNames, QueueNames, DefaultJob<JobNames>>(
+        flowQueueManager = new QueueFlowManager<JobNames, QueueNames, JobData, DefaultJob<JobNames, JobData>>(
             queues,
             queueOptions,
             nameToQueue,

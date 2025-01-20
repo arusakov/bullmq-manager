@@ -8,6 +8,7 @@ import { createRedis } from '../utils'
 describe('Queue manager', () => {
   type JobNames = 'Job1' | 'Job2'
   type QueueNames = 'Queue1' | 'Queue2'
+  type JobData = { price: number }
 
   const connection = createRedis()
 
@@ -23,9 +24,9 @@ describe('Queue manager', () => {
     console.log(`№2 Job=${job.name} is waiting in queue=${queue.name}`)
   }
 
-  let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
-  const newJobForQueue1: DefaultJob<JobNames> = { name: 'Job1', data: {} }
-  const newJobForQueue2: DefaultJob<JobNames> = { name: 'Job2', data: {} }
+  let queueManager: QueueManager<JobNames, QueueNames, JobData, DefaultJob<JobNames, JobData>>
+  const newJobForQueue1: DefaultJob<JobNames, JobData> = { name: 'Job1', data: { price: 100 } }
+  const newJobForQueue2: DefaultJob<JobNames, JobData> = { name: 'Job2', data: { price: 200 } }
 
   before(async () => {
 
@@ -57,7 +58,7 @@ describe('Queue manager', () => {
       Job2: 'Queue2',
     }
 
-    queueManager = new QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>(
+    queueManager = new QueueManager<JobNames, QueueNames, JobData, DefaultJob<JobNames, JobData>>(
       queues,
       queueOptions,
       nameToQueue,
@@ -85,7 +86,6 @@ describe('Queue manager', () => {
   })
 
   it('Add job in queue', async () => {
-
     const job = await queueManager.addJob(newJobForQueue1)
     const queue1Jobs = await queueManager.getQueue('Queue1').getWaiting()
 
@@ -98,9 +98,9 @@ describe('Queue manager', () => {
   })
 
   it('Add jobs in queue', async () => {
-    const newJobs: DefaultJob<JobNames>[] = [{ name: 'Job1', data: {} }, { name: 'Job1', data: {} }, { name: 'Job2', data: {} }]
+    const newJobs: DefaultJob<JobNames, JobData>[] = [{ name: 'Job1', data: { price: 100 } }, { name: 'Job1', data: { price: 200 } }, { name: 'Job2', data: { price: 300 } }]
 
-    await queueManager.addJobs(newJobs)
+    const jobs = await queueManager.addJobs(newJobs)
 
     const queue1Jobs = await queueManager.getQueue('Queue1').getWaiting()
     const queue2Jobs = await queueManager.getQueue('Queue2').getWaiting()

@@ -12,24 +12,23 @@ describe('Worker manager', () => {
     type JobNames = JobNames1 | JobNames2
     type QueueNames = 'Queue1' | 'Queue2'
     let isListenerCalled = false
-    type JobsType1 = {
-        name: JobNames1,
-        data: string
+
+    type JobDataType = {
+        price: number,
+    }
+    type JobsType = {
+        name: JobNames,
+        data: JobDataType
     }
 
-    type JobsType2 = {
-        name: JobNames2,
-        data: boolean
-    }
-
-    type JobsType = JobsType1 | JobsType2
 
 
     const connection = createRedis()
-    let workerManager: WorkerManager<JobNames, QueueNames, DefaultJob<JobNames>>
-    let queueManager: QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>
-    const newJob: DefaultJob<JobNames> = { name: 'Job1', data: {} }
+    let workerManager: WorkerManager<JobNames, QueueNames, JobDataType>
+    let queueManager: QueueManager<JobNames, QueueNames, JobDataType, DefaultJob<JobNames, JobDataType>>
     type Jobs = JobsType & Pick<Job, 'id' | 'queueName'>
+    const newJob: DefaultJob<JobNames, JobDataType> = { name: 'Job1', data: { price: 100 } }
+
 
     const listenerOn = (worker: Worker, job: Job) => {
         isListenerCalled = true
@@ -61,7 +60,7 @@ describe('Worker manager', () => {
 
         const options: WorkerManagerOptions = {}
 
-        workerManager = new WorkerManager<JobNames, QueueNames, DefaultJob<JobNames>>(
+        workerManager = new WorkerManager<JobNames, QueueNames, JobDataType>(
             workers,
             processor,
             workerOptions,
@@ -87,7 +86,7 @@ describe('Worker manager', () => {
             Job2: 'Queue2',
         }
 
-        queueManager = new QueueManager<JobNames, QueueNames, DefaultJob<JobNames>>(
+        queueManager = new QueueManager<JobNames, QueueNames, JobDataType, DefaultJob<JobNames, JobDataType>>(
             queues,
             queueOptions,
             nameToQueue
